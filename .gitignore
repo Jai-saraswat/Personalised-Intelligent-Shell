@@ -1,26 +1,54 @@
-# IDE
+# =========================
+# IDE / Editor
+# =========================
 .idea/
 *.iml
 
-# Environment
+# =========================
+# Environment & Secrets
+# =========================
 .env
 .env.*
+!.env.example
 
+# =========================
 # Python
+# =========================
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
+.venv/
+venv/
 
-# Databases
+# =========================
+# Databases / Local state
+# =========================
 *.db
 *.sqlite
+*.sqlite3
 
-# Models / embeddings
+# =========================
+# ML / Models / Artifacts
+# =========================
 *.safetensors
 *.bin
+*.pt
+*.onnx
 *.npz
 Finetuned-*/
+checkpoints/
+artifacts/
 
+# =========================
+# Logs / temp
+# =========================
+logs/
+*.log
+tmp/
+
+# =========================
 # OS
+# =========================
 .DS_Store
 Thumbs.db
