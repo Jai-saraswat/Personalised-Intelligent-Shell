@@ -1,4 +1,4 @@
-# Personalised Intelligent Shell (JaiShell)
+# Personalised Intelligent Shell
 
 ![Version](https://img.shields.io/badge/version-0.2-blue) ![Status](https://img.shields.io/badge/status-Active%20Development-green) ![AI-Powered](https://img.shields.io/badge/AI-Hybrid%20Shell-purple)
 
