@@ -1,6 +1,6 @@
-# Core/CoreShell.py
-import os
+import streamlit as st
 import sys
+import os
 import shlex
 import time
 from datetime import datetime
@@ -19,53 +19,63 @@ sys.path.append(str(ROOT_DIR))
 from Core.db_init import init_db
 from Core.db_writer import (
     log_session_start,
-    log_session_end,
     log_command,
     log_error
 )
-from Core.command_contract import command_result
 
 # ---------------------------
 # COMMAND MODULES
 # ---------------------------
 from General_Commands.commands import (
-    shell_exit,
-    shell_help,
-    shell_status,
-    shell_clear,
-    shell_history,
-    shell_logs
+    shell_exit, shell_help, shell_status,
+    shell_clear, shell_history, shell_logs
 )
-
 from External_Commands.commands import (
-    shell_open,
-    shell_register,
-    shell_clean,
-    shell_make,
-    shell_read,
-    shell_search,
-    shell_news,
-    shell_weather,
-    shell_stocks,
+    shell_open, shell_register, shell_clean,
+    shell_make, shell_read, shell_search,
+    shell_news, shell_weather, shell_stocks,
     shell_download
 )
 
 from AICore import ai_engine
 
 # ---------------------------
-# CONFIGURATION
+# STREAMLIT CONFIG
 # ---------------------------
-VERSION = os.getenv("VERSION", "0.0")
-USER_NAME = os.getenv("USER_NAME", "user")
-DEFAULT_MODE = os.getenv("DEFAULT_MODE", "rule")
-TYPING_SPEED = 0.003  # seconds per character
+st.set_page_config(
+    page_title="Personalised Intelligent Shell",
+    page_icon="⚡",
+    layout="wide"
+)
+
+USER_NAME = os.getenv("USER_NAME", "Jai")
+
+# ---------------------------
+# CSS (Clean, Terminal Feel)
+# ---------------------------
+st.markdown("""
+<style>
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+
+.stChatInput {
+    position: fixed;
+    bottom: 20px;
+    width: 100%;
+    z-index: 1000;
+}
+
+.stCodeBlock {
+    background-color: #0e1117;
+    border: 1px solid #30333d;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ---------------------------
 # FUNCTION MAP (RULE MODE)
-# NOTE: Must stay logically in sync with AI command registry
 # ---------------------------
 FUNCTION_MAP = {
-    # General
     "exit": shell_exit,
     "quit": shell_exit,
     "help": shell_help,
@@ -73,8 +83,6 @@ FUNCTION_MAP = {
     "clear": shell_clear,
     "history": shell_history,
     "logs": shell_logs,
-
-    # External / System
     "open": shell_open,
     "register": shell_register,
     "clean": shell_clean,
@@ -88,173 +96,183 @@ FUNCTION_MAP = {
 }
 
 # ---------------------------
-# CONTEXT CREATION
+# HELPERS
 # ---------------------------
-def create_context():
-    return {
+def format_response(result):
+    if not isinstance(result, dict):
+        return "Command finished."
+
+    parts = []
+
+    if result.get("message"):
+        parts.append(result["message"])
+
+    data = result.get("data")
+    if isinstance(data, dict):
+        content = data.get("content")
+        if isinstance(content, list):
+            parts.append(f"```bash\n" + "\n".join(map(str, content)) + "\n```")
+        elif isinstance(content, str):
+            parts.append(content)
+
+    return "\n\n".join(parts)
+
+
+def normalize_result(result):
+    if result is None:
+        return {
+            "status": "success",
+            "message": "Command completed.",
+            "data": {}
+        }
+    if not isinstance(result, dict):
+        return {
+            "status": "success",
+            "message": str(result),
+            "data": {}
+        }
+    return result
+
+
+def execute_command(prompt, context):
+    # Mode switching
+    if prompt.lower() == "mode ai":
+        context["mode"] = "ai"
+        return {"message": "Switched to AI mode.", "status": "success"}
+
+    if prompt.lower() == "mode rule":
+        context["mode"] = "rule"
+        return {"message": "Switched to rule mode.", "status": "success"}
+
+    try:
+        tokens = shlex.split(prompt)
+        cmd = tokens[0].lower()
+        args = tokens[1:]
+    except ValueError:
+        return {"message": "That command looks malformed.", "status": "error"}
+
+    try:
+        if context["mode"] == "rule":
+            if cmd not in FUNCTION_MAP:
+                log_error(context["session_id"], "UnknownCommand", cmd, "streamlit")
+                return {"message": f"Unknown command: `{cmd}`", "status": "error"}
+
+            func = FUNCTION_MAP[cmd]
+            result = normalize_result(func(args, context))
+            function_name = func.__name__
+
+        else:
+            result = normalize_result(ai_engine(prompt, context))
+            function_name = "ai_engine"
+
+        log_command(
+            context["session_id"],
+            prompt,
+            result,
+            context["mode"],
+            function_name
+        )
+
+        data = result.get("data")
+        if isinstance(data, dict) and data.get("action") == "clear_screen":
+            st.session_state.messages = []
+            return {"message": "Console cleared.", "status": "success"}
+
+        return result
+
+    except Exception as e:
+        log_error(context["session_id"], "CriticalCrash", str(e), "streamlit")
+        return {
+            "message": "That command didn’t return anything usable yet.",
+            "status": "error"
+        }
+
+# ---------------------------
+# INITIALIZATION
+# ---------------------------
+if "initialized" not in st.session_state:
+    init_db()
+
+    st.session_state.context = {
         "session_id": int(time.time()),
         "user_name": USER_NAME,
-        "mode": DEFAULT_MODE,
-        "start_time": datetime.now().isoformat(),
+        "mode": "rule",
+        "start_time": datetime.now().isoformat()
     }
 
-# ---------------------------
-# OUTPUT UTILITIES
-# ---------------------------
-def type_print(text, delay=TYPING_SPEED):
-    """Print text with typing effect."""
-    if not text:
-        return
-    for char in str(text):
-        sys.stdout.write(char)
-        sys.stdout.flush()
-        time.sleep(delay)
-    print()
+    log_session_start(st.session_state.context["session_id"])
 
-def print_response(result):
-    if not result:
-        return
+    st.session_state.messages = [{
+        "role": "assistant",
+        "content": f"Shell ready.\n\nWelcome, {USER_NAME}. Type `help` to get started."
+    }]
 
-    # Main message
-    message = result.get("message")
-    if message:
-        type_print(message)
-
-    # Optional list output
-    data = result.get("data")
-    if data and isinstance(data.get("content"), list):
-        for line in data["content"]:
-            type_print(line, delay=0.001)
+    st.session_state.pending_result = None
+    st.session_state.initialized = True
 
 # ---------------------------
-# MAIN SHELL LOOP
+# SIDEBAR
 # ---------------------------
-def main():
-    # Initialization
-    type_print("Booting JaiShell Core...")
-    init_db()
-    context = create_context()
+with st.sidebar:
+    st.title("⚡ Personalised Shell")
+    st.divider()
 
-    # Session start logging
-    try:
-        log_session_start(context["session_id"])
-    except Exception as e:
-        type_print(f"Warning: Could not log session start: {e}")
+    st.markdown(f"**Mode:** `{st.session_state.context['mode'].upper()}`")
+    st.markdown(f"**Session:** `{st.session_state.context['session_id']}`")
 
-    type_print(f"Welcome, {context['user_name']}. Shell is ready.")
-    type_print("Type 'help' for commands.")
+    st.divider()
 
-    # Main loop
-    while True:
-        try:
-            mode_indicator = "AI" if context["mode"] == "ai" else "Rule"
-            raw_input = input(f"JaiShell [{mode_indicator}] ▸ ").strip()
+    if st.button("Clear chat history", use_container_width=True):
+        st.session_state.messages = []
+        st.rerun()
 
-            if not raw_input:
-                continue
-
-            # Mode switching
-            if raw_input.lower() == "mode ai":
-                context["mode"] = "ai"
-                type_print("Switched to AI Mode.")
-                continue
-
-            if raw_input.lower() == "mode rule":
-                context["mode"] = "rule"
-                type_print("Switched to Rule Mode.")
-                continue
-
-            # Tokenization
-            try:
-                tokens = shlex.split(raw_input)
-                cmd = tokens[0].lower()
-                args = tokens[1:]
-            except ValueError:
-                type_print("Error: Invalid command format (check quotes).")
-                continue
-
-            result = None
-            function_name = None
-
-            # ---------------------------
-            # EXECUTION ENGINE
-            # ---------------------------
-            if context["mode"] == "rule":
-                if cmd in FUNCTION_MAP:
-                    func = FUNCTION_MAP[cmd]
-                    function_name = func.__name__
-                    result = func(args, context)
-                else:
-                    type_print(f"Unknown command: {cmd}")
-
-                    log_command(
-                        context["session_id"],
-                        raw_input,
-                        {"status": "error", "message": "Unknown command"},
-                        "rule"
-                    )
-
-                    log_error(
-                        context["session_id"],
-                        "UnknownCommand",
-                        f"Command '{cmd}' not found",
-                        "main_loop"
-                    )
-                    continue
-            else:
-                function_name = "ai_engine"
-                result = ai_engine(raw_input, context)
-
-            # ---------------------------
-            # OUTPUT & LOGGING
-            # ---------------------------
-            if result:
-                print_response(result)
-
-                log_command(
-                    context["session_id"],
-                    raw_input,
-                    result,
-                    context["mode"],
-                    function_name
-                )
-
-                if result.get("status") == "error":
-                    error = result.get("error", {})
-                    log_error(
-                        context["session_id"],
-                        error.get("type", "CommandError"),
-                        error.get("details", result.get("message")),
-                        function_name or "unknown"
-                    )
-
-                data = result.get("data") or {}
-
-                if data.get("action") == "exit":
-                    break
-
-                if data.get("action") == "clear_screen":
-                    print("\n" * 100)
-
-
-        except KeyboardInterrupt:
-            type_print("\nForce Close detected.")
-            break
-        except Exception as e:
-            type_print(f"Critical Shell Error: {e}")
-            log_error(
-                context["session_id"],
-                "CriticalCrash",
-                str(e),
-                "main_loop"
-            )
-
-    # Session end
-    log_session_end(context["session_id"], graceful=True)
-    type_print("Session Closed.")
+    if st.button("Toggle mode", use_container_width=True):
+        st.session_state.context["mode"] = (
+            "ai" if st.session_state.context["mode"] == "rule" else "rule"
+        )
+        st.toast(f"Switched to {st.session_state.context['mode'].upper()} mode")
+        st.rerun()
 
 # ---------------------------
-# ENTRY POINT
+# CHAT HISTORY
 # ---------------------------
-if __name__ == "__main__":
-    main()
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
+
+# ---------------------------
+# CHAT INPUT (FULL WIDTH)
+# ---------------------------
+if prompt := st.chat_input(
+    f"Type a command ({st.session_state.context['mode']} mode)…"
+):
+    if st.session_state.pending_result is None:
+        st.session_state.messages.append({"role": "user", "content": prompt})
+
+        result = execute_command(prompt, st.session_state.context)
+        response_text = format_response(result)
+
+        st.session_state.pending_result = response_text
+        st.rerun()
+
+# ---------------------------
+# ASSISTANT RESPONSE
+# ---------------------------
+if st.session_state.pending_result:
+    with st.chat_message("assistant"):
+        placeholder = st.empty()
+        rendered = ""
+
+        for word in st.session_state.pending_result.split(" "):
+            rendered += word + " "
+            time.sleep(0.02)
+            placeholder.markdown(rendered + "▌")
+
+        placeholder.markdown(rendered)
+
+    st.session_state.messages.append({
+        "role": "assistant",
+        "content": st.session_state.pending_result
+    })
+
+    st.session_state.pending_result = None
