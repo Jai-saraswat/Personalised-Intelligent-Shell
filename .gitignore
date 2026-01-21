@@ -1,0 +1,22 @@
+# Virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# IDE files
+.idea/
+
+# Databases & logs
+*.db
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Model & embeddings
+Finetuned-gte-large-en-v1.5/
+*.npz
+.env
