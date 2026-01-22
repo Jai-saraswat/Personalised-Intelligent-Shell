@@ -1,62 +1,152 @@
+# ============================================================
+# Function_Router.py
+# ============================================================
+# Semantic intent router for JaiShell.
+#
+# This module is responsible ONLY for:
+#   - Loading the sentence embedding model
+#   - Comparing user input against stored command embeddings
+#   - Producing ranked routing decisions
+#
+# It does NOT:
+#   - Execute commands
+#   - Ask for confirmation
+#   - Log decisions
+#   - Know anything about UX
+#
+# ============================================================
+
+import json
+from typing import List, Tuple
+
+import numpy as np
 from sentence_transformers import SentenceTransformer
-model = SentenceTransformer(
-    r"C:\Users\vinit\Downloads\Finetuned-gte-large-en-v1.5",
-    trust_remote_code=True
-)
-functions = {
-    "shell_open": "shell_open: Opens applications, files, or system resources.",
-    "shell_clean": "shell_clean: Cleans temporary files, cache, and unused system data.",
-    "shell_make": "shell_make: Creates files, folders, or new system resources.",
-    "shell_read": "shell_read: Reads files or displays file contents.",
-    "shell_search": "shell_search: Searches files, folders, or information.",
-    "shell_news": "shell_news: Fetches latest news and headlines.",
-    "shell_weather": "shell_weather: Provides weather information and forecasts.",
-    "shell_stocks": "shell_stocks: Fetches stock prices and market data.",
-    "shell_download": "shell_download: Downloads files from the internet."
-}
 from sklearn.metrics.pairwise import cosine_similarity
 
-fn_names = list(functions.keys())
-fn_descs = list(functions.values())
+from Core.db_connection import get_connection
 
-fn_embeddings = model.encode(
-    fn_descs,
-    normalize_embeddings=True
-)
-def predict_intent(query, top_k=3):
-    q_emb = model.encode(query, normalize_embeddings=True)
+# ============================================================
+# MODEL CONFIGURATION
+# ============================================================
+# Use your fine-tuned model path here
+MODEL_PATH = r"D:\Coding\Projects\Personlised_Intelligent_Shell\Finetuned-gte-large-en-v1.5"
 
-    scores = cosine_similarity([q_emb], fn_embeddings)[0]
+# Thresholds (tuned later, kept explicit)
+AUTO_EXECUTE_THRESHOLD = 0.75
+CONFIRM_THRESHOLD = 0.60
+MIN_MARGIN = 0.08
 
-    results = sorted(
-        zip(fn_names, scores),
-        key=lambda x: x[1],
+# ============================================================
+# MODEL LOADING
+# ============================================================
+_model = None
+
+def get_model() -> SentenceTransformer:
+    """
+    Lazy-load the embedding model.
+    """
+    global _model
+    if _model is None:
+        _model = SentenceTransformer(
+            MODEL_PATH,
+            trust_remote_code=True
+        )
+    return _model
+
+# ============================================================
+# EMBEDDING FETCH
+# ============================================================
+def _load_command_embeddings():
+    """
+    Fetch command embeddings from the database.
+    """
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT
+                c.command_id,
+                c.command_name,
+                ce.embedding_json
+            FROM commands c
+            JOIN command_embeddings ce
+                ON c.command_id = ce.command_id
+            """
+        )
+
+        rows = cur.fetchall()
+
+        command_ids = []
+        command_names = []
+        embeddings = []
+
+        for command_id, command_name, embedding_json in rows:
+            command_ids.append(command_id)
+            command_names.append(command_name)
+            embeddings.append(json.loads(embedding_json))
+
+        return (
+            command_ids,
+            command_names,
+            np.array(embeddings, dtype="float32")
+        )
+
+    finally:
+        conn.close()
+
+# ============================================================
+# ROUTING CORE
+# ============================================================
+def predict_intent(query: str, top_k: int = 3) -> List[Tuple[int, str, float]]:
+    """
+    Rank commands by semantic similarity.
+
+    Returns:
+        List of (command_id, command_name, score)
+    """
+    model = get_model()
+    q_embedding = model.encode(query, normalize_embeddings=True)
+
+    command_ids, command_names, command_embeddings = _load_command_embeddings()
+
+    if len(command_embeddings) == 0:
+        return []
+
+    scores = cosine_similarity(
+        [q_embedding],
+        command_embeddings
+    )[0]
+
+    ranked = sorted(
+        zip(command_ids, command_names, scores),
+        key=lambda x: x[2],
         reverse=True
     )
 
-    return results[:top_k]
+    return ranked[:top_k]
 
-def route_command(query):
-    top1, top2 = predict_intent(query, top_k=2)
+# ============================================================
+# DECISION LOGIC
+# ============================================================
+def route_command(query: str):
+    """
+    Determine routing action based on similarity confidence.
+    """
+    ranked = predict_intent(query, top_k=2)
 
-    fn1, score1 = top1
-    _, score2 = top2
+    if len(ranked) == 0:
+        return None, "REJECT", 0.0
 
-    if score1 >= 0.75 and (score1 - score2) >= 0.08:
-        return fn1, "AUTO_EXECUTE"
+    (cmd_id_1, cmd_name_1, score_1) = ranked[0]
+    (_, _, score_2) = ranked[1] if len(ranked) > 1 else (None, None, 0.0)
 
-    if score1 >= 0.60:
-        return fn1, "CONFIRM"
+    # High confidence + clear margin
+    if score_1 >= AUTO_EXECUTE_THRESHOLD and (score_1 - score_2) >= MIN_MARGIN:
+        return cmd_id_1, "AUTO_EXECUTE", score_1
 
-    return None, "REJECT"
+    # Medium confidence
+    if score_1 >= CONFIRM_THRESHOLD:
+        return cmd_id_1, "CONFIRM", score_1
 
-# queries = [
-#     "open chrome",
-#     "clean the junk in temp folder",
-#     "what are the headlines of delhi today?"
-# ]
-#
-# for q in queries:
-#     intent, action = route_command(q)
-#     print(q, "→", intent, action)
-
+    return None, "REJECT", score_1

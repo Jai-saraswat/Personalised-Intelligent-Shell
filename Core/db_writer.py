@@ -1,109 +1,164 @@
-# Core/db_writer.py
+# ============================================================
+# db_writer.py
+# ============================================================
+# Write-only persistence layer for JaiShell.
+#
+# This module is responsible for inserting factual records
+# into the database. It does not interpret, reason, or decide.
+#
+# RULES:
+# - Accept primitives only (str, int, bool, float)
+# - Generate timestamps internally
+# - Never accept raw dicts
+# ============================================================
+
 from datetime import datetime
-from db_connection import get_connection
+from Core.db_connection import get_connection
 
-# --- WRITE OPERATIONS ---
-
-def log_session_start(session_id: int):
+# ============================================================
+# SESSION LOGGING
+# ============================================================
+def log_session_start(session_id: int, start_timestamp: str):
     """
-    Creates a new session entry.
+    Record the start of a shell session.
     """
     conn = get_connection()
     try:
         cur = conn.cursor()
-        cur.execute("""
+        cur.execute(
+            """
             INSERT INTO sessions (session_id, start_timestamp, grace_termination)
             VALUES (?, ?, 0)
-        """, (session_id, datetime.now().isoformat()))
+            """,
+            (session_id, start_timestamp)
+        )
         conn.commit()
     finally:
         conn.close()
 
-def log_session_end(session_id: int, graceful: bool = True):
+
+def log_session_end(session_id: int, graceful: bool, end_timestamp: str):
     """
-    Updates the session with end time and termination status.
+    Mark the end of a shell session.
     """
     conn = get_connection()
     try:
         cur = conn.cursor()
-        cur.execute("""
-            UPDATE sessions 
+        cur.execute(
+            """
+            UPDATE sessions
             SET end_timestamp = ?, grace_termination = ?
             WHERE session_id = ?
-        """, (datetime.now().isoformat(), 1 if graceful else 0, session_id))
+            """,
+            (end_timestamp, 1 if graceful else 0, session_id)
+        )
         conn.commit()
     finally:
         conn.close()
 
-def log_command(session_id: int, prompt: str, result: dict, mode: str, function_called: str = None):
+# ============================================================
+# COMMAND EXECUTION LOGGING
+# ============================================================
+def log_command_execution(
+    session_id: int,
+    raw_input: str,
+    status: str,
+    mode: str,
+    function_called: str = None,
+    command_id: int = None
+):
     """
-    Logs a command execution based on the standardized result contract.
+    Log a command execution event.
     """
     conn = get_connection()
     try:
         cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO commands_executed 
-            (session_id, prompt, status, description, mode, function_called, timestamp)
+        cur.execute(
+            """
+            INSERT INTO command_executions
+            (session_id, raw_input, command_id, status, mode, function_called, timestamp)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (
-            session_id,
-            prompt,
-            result.get("status", "unknown"),
-            result.get("message", ""),
-            mode,
-            function_called,
-            result.get("timestamp", datetime.now().isoformat())
-        ))
+            """,
+            (
+                session_id,
+                raw_input,
+                command_id,
+                status,
+                mode,
+                function_called,
+                datetime.now().isoformat()
+            )
+        )
         conn.commit()
     finally:
         conn.close()
 
-def log_error(session_id: int, error_name: str, description: str, origin: str):
+# ============================================================
+# ERROR LOGGING
+# ============================================================
+def log_error(
+    session_id: int,
+    error_name: str,
+    error_description: str,
+    origin_function: str
+):
     """
-    Logs a specific system error.
+    Log a system or command error.
     """
     conn = get_connection()
     try:
         cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO errors 
+        cur.execute(
+            """
+            INSERT INTO errors
             (session_id, error_name, error_description, origin_function, timestamp)
             VALUES (?, ?, ?, ?, ?)
-        """, (
-            session_id,
-            error_name,
-            description,
-            origin,
-            datetime.now().isoformat()
-        ))
+            """,
+            (
+                session_id,
+                error_name,
+                error_description,
+                origin_function,
+                datetime.now().isoformat()
+            )
+        )
         conn.commit()
     finally:
         conn.close()
 
+# ============================================================
+# REGISTRY MANAGEMENT
+# ============================================================
 def register_entry(name: str, path: str, type_: str):
     """
-    Adds or updates a registry entry (for 'open' command).
+    Add or update a registry shortcut.
     """
     conn = get_connection()
     try:
         cur = conn.cursor()
-        cur.execute("""
+        cur.execute(
+            """
             INSERT OR REPLACE INTO registry (name, path, type)
             VALUES (?, ?, ?)
-        """, (name, path, type_))
+            """,
+            (name, path, type_)
+        )
         conn.commit()
     finally:
         conn.close()
+
 
 def unregister_entry(name: str):
     """
-    Removes a registry entry.
+    Remove a registry shortcut.
     """
     conn = get_connection()
     try:
         cur = conn.cursor()
-        cur.execute("DELETE FROM registry WHERE name = ?", (name,))
+        cur.execute(
+            "DELETE FROM registry WHERE name = ?",
+            (name,)
+        )
         conn.commit()
     finally:
         conn.close()

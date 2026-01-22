@@ -1,84 +1,87 @@
+# ============================================================
+# db_vector_manager.py
+# ============================================================
+# Embedding generation and persistence for JaiShell commands.
+#
+# Responsibilities:
+# - Read command descriptions from database
+# - Generate sentence embeddings using the SAME model as router
+# - Persist embeddings back to database
+#
+# RULES:
+# - Commands table is the source of truth
+# - No schema creation here
+# - No routing or similarity logic here
+# - Model choice MUST stay consistent with Function_Router
+# ============================================================
+
 import json
-import sqlite3
 from sentence_transformers import SentenceTransformer
 from Core.db_connection import get_connection
 
+# ============================================================
+# MODEL CONFIGURATION (SINGLE SOURCE OF TRUTH)
+# ============================================================
+# MUST match Core/Function_Router.py
+MODEL_PATH = r"D:\Coding\Projects\Personlised_Intelligent_Shell\Finetuned-gte-large-en-v1.5"
 
-def save_function_embeddings(functions):
+# ============================================================
+# EMBEDDING PIPELINE
+# ============================================================
+def generate_and_store_command_embeddings():
     """
-    Encodes function descriptions and saves them to the database.
+    Generate embeddings for all commands defined in the database
+    and store them in the command_embeddings table.
     """
-    print("Loading SentenceTransformer model...")
-    model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+    print(f"Loading embedding model: {MODEL_PATH}")
+
+    model = SentenceTransformer(
+        MODEL_PATH,
+        trust_remote_code=True
+    )
 
     conn = get_connection()
-    cursor = conn.cursor()
+    try:
+        cur = conn.cursor()
 
-    # Ensure table exists
-    cursor.execute("""
-                   CREATE TABLE IF NOT EXISTS function_embeddings
-                   (
-                       function_name TEXT PRIMARY KEY,
-                       description   TEXT,
-                       embedding     TEXT
-                   )
-                   """)
+        # Commands table is the source of truth
+        cur.execute(
+            """
+            SELECT command_id, description
+            FROM commands
+            """
+        )
+        commands = cur.fetchall()
 
-    print("Generating and saving embeddings...")
-    for name, description in functions:
-        # Generate embedding vector
-        vector = model.encode(description).tolist()
+        if not commands:
+            print("No commands found in database. Nothing to embed.")
+            return
 
-        # Save to DB (Insert or Replace ensures updates work)
-        cursor.execute("""
-            INSERT OR REPLACE INTO function_embeddings (function_name, description, embedding)
-            VALUES (?, ?, ?)
-        """, (name, description, json.dumps(vector)))
+        print(f"Generating embeddings for {len(commands)} commands...")
 
-    conn.commit()
-    conn.close()
-    print("Successfully saved all embeddings to jaishell.db.")
+        for command_id, description in commands:
+            embedding = model.encode(
+                description,
+                normalize_embeddings=True
+            ).tolist()
 
+            cur.execute(
+                """
+                INSERT OR REPLACE INTO command_embeddings
+                (command_id, embedding_json)
+                VALUES (?, ?)
+                """,
+                (command_id, json.dumps(embedding))
+            )
 
+        conn.commit()
+        print("Command embeddings stored successfully.")
+
+    finally:
+        conn.close()
+
+# ============================================================
+# SCRIPT ENTRY POINT
+# ============================================================
 if __name__ == "__main__":
-    # Your list from the prompt
-    FUNCTION_DESCRIPTIONS = [
-        [
-            "shell_open",
-            "User wants to open or launch something already registered, such as an app, folder, or website."
-        ],
-        [
-            "shell_clean",
-            "User wants to remove junk, temporary files, or clear system folders like downloads or temp."
-        ],
-        [
-            "shell_make",
-            "User wants to create a new file or a new folder."
-        ],
-        [
-            "shell_read",
-            "User wants to read or view the contents of a specific file."
-        ],
-        [
-            "shell_search",
-            "User wants to search the internet for information."
-        ],
-        [
-            "shell_news",
-            "User wants to know current news or headlines."
-        ],
-        [
-            "shell_weather",
-            "User wants to know the weather for a specific location."
-        ],
-        [
-            "shell_stocks",
-            "User wants to know stock prices or market information."
-        ],
-        [
-            "shell_download",
-            "User wants to download a file from a URL."
-        ]
-    ]
-
-    save_function_embeddings(FUNCTION_DESCRIPTIONS)
+    generate_and_store_command_embeddings()

@@ -1,23 +1,53 @@
-# Core/db_connection.py
+# ============================================================
+# db_connection.py
+# ============================================================
+# Centralized SQLite connection manager for JaiShell.
+#
+# This module is responsible ONLY for:
+#   - Defining where the database lives
+#   - Creating safe, configured SQLite connections
+#
+# It must:
+#   - Have no side effects
+#   - Contain no schema logic
+#   - Contain no read/write logic
+#
+# All database access flows through this file.
+# ============================================================
+
 import sqlite3
 from pathlib import Path
 
-# --- GLOBAL CONFIGURATION ---
-# Base directory is the parent of the current file (Core folder)
+# ============================================================
+# DATABASE LOCATION
+# ============================================================
+# The database lives alongside the Core module.
 BASE_DIR = Path(__file__).resolve().parent
 DB_NAME = "Shell_Warehouse.db"
 DB_PATH = BASE_DIR / DB_NAME
 
+# ============================================================
+# CONNECTION FACTORY
+# ============================================================
 def get_connection():
     """
-    Establishes a connection to the SQLite database.
-    Enforces foreign keys.
+    Create and return a configured SQLite connection.
+
+    Configuration applied:
+    - Foreign key enforcement
+    - WAL journal mode (handled in db_init)
+    - Row factory disabled (explicit tuples for clarity)
     """
     try:
         conn = sqlite3.connect(DB_PATH)
+
+        # Enforce relational integrity
         conn.execute("PRAGMA foreign_keys = ON;")
+
         return conn
+
     except sqlite3.Error as e:
-        # In a real scenario, we might log this, but since we can't connect to DB,
-        # we raise it to be caught by Core.
-        raise ConnectionError(f"Failed to connect to database at {DB_PATH}: {e}")
+        # Cannot log to DB if DB connection itself failed
+        raise ConnectionError(
+            f"Failed to connect to database at {DB_PATH}: {e}"
+        )
