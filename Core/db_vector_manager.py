@@ -16,14 +16,21 @@
 # ============================================================
 
 import json
+import os
+from pathlib import Path
+
 from sentence_transformers import SentenceTransformer
 from Core.db_connection import get_connection
 
 # ============================================================
 # MODEL CONFIGURATION (SINGLE SOURCE OF TRUTH)
 # ============================================================
-# MUST match Core/Function_Router.py
-MODEL_PATH = r"D:\Coding\Projects\Personlised_Intelligent_Shell\Finetuned-gte-large-en-v1.5"
+# Resolution order:
+# 1. ENV variable (preferred, prod-safe)
+# 2. Project-relative fallback (dev-safe)
+
+DEFAULT_MODEL_DIR = Path(__file__).resolve().parents[1] / "Finetuned-gte-large-en-v1.5"
+MODEL_PATH = os.getenv("EMBEDDING_MODEL_PATH", str(DEFAULT_MODEL_DIR))
 
 # ============================================================
 # EMBEDDING PIPELINE
@@ -33,7 +40,7 @@ def generate_and_store_command_embeddings():
     Generate embeddings for all commands defined in the database
     and store them in the command_embeddings table.
     """
-    print(f"Loading embedding model: {MODEL_PATH}")
+    print(f"Loading embedding model from: {MODEL_PATH}")
 
     model = SentenceTransformer(
         MODEL_PATH,

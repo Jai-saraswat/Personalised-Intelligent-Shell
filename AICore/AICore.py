@@ -17,21 +17,15 @@
 #
 # ============================================================
 
-import os
-from typing import List, Tuple
-
-from dotenv import load_dotenv
+from typing import List
 
 from Core.command_contract import command_result
 from Core.Function_Router import route_command
 from Core.server_api import extract_arguments
 from Core.db_reader import get_function_schema
 from External_Commands import commands as external_commands
-
+from dotenv import load_dotenv
 load_dotenv()
-
-USER_NAME = os.getenv("USER_NAME", "User")
-
 # ============================================================
 # COMMAND REGISTRY (STRICT)
 # ============================================================
@@ -107,7 +101,8 @@ def ai_engine(prompt: str, context: dict):
             message=(
                 "I couldn’t confidently map that to a shell command.\n"
                 "Try commands like: open, clean, read, summarize, weather."
-            )
+            ),
+            confidence=confidence
         )
 
     # --------------------------------------------------------
@@ -117,14 +112,16 @@ def ai_engine(prompt: str, context: dict):
     if not schema:
         return command_result(
             status="error",
-            message="Command schema missing. Cannot execute safely."
+            message="Command schema missing. Cannot execute safely.",
+            confidence=confidence
         )
 
     command_name = schema.get("command_name")
     if command_name not in COMMAND_REGISTRY:
         return command_result(
             status="error",
-            message=f"Command '{command_name}' is not allowed."
+            message=f"Command '{command_name}' is not allowed.",
+            confidence=confidence
         )
 
     # --------------------------------------------------------
@@ -136,7 +133,8 @@ def ai_engine(prompt: str, context: dict):
             message=(
                 f"The command `{command_name}` requires confirmation.\n"
                 f"Please confirm before proceeding."
-            )
+            ),
+            confidence=confidence
         )
 
     # --------------------------------------------------------
@@ -152,7 +150,8 @@ def ai_engine(prompt: str, context: dict):
     except Exception as e:
         return command_result(
             status="error",
-            message=f"Argument extraction failed: {e}"
+            message=f"Argument extraction failed: {e}",
+            confidence=confidence
         )
 
     # Convert extracted args → CLI-style args
@@ -174,6 +173,7 @@ def ai_engine(prompt: str, context: dict):
     )
 
     # --------------------------------------------------------
-    # 6. Final response
+    # 6. Attach confidence & return
     # --------------------------------------------------------
+    result["confidence"] = confidence
     return result

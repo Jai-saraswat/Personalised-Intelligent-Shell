@@ -2,7 +2,14 @@
 # server_api.py
 # ============================================================
 # Raw Groq REST client for argument extraction.
+#
 # This bypasses ALL SDKs to avoid proxy poisoning.
+#
+# RULES:
+# - No orchestration logic
+# - No retries
+# - No DB access
+# - No prompt reasoning
 # ============================================================
 
 import os
@@ -11,11 +18,17 @@ import requests
 from dotenv import load_dotenv
 load_dotenv()
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
+# ============================================================
+# CONFIGURATION
+# ============================================================
 
+GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
+DEFAULT_MODEL = "openai/gpt-oss-120b"
 TIMEOUT = 30
 
+# ============================================================
+# ARGUMENT EXTRACTION
+# ============================================================
 
 def extract_arguments(
     prompt: str,
@@ -23,11 +36,22 @@ def extract_arguments(
     schema: dict,
     tokenized_prompt: list | None = None
 ) -> dict:
-    if not GROQ_API_KEY:
+    """
+    Extract structured arguments for a command using Groq LLM.
+
+    This function:
+    - Sends a raw REST request
+    - Expects VALID JSON only in response
+    - Raises on any malformed or failed response
+    """
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
         raise RuntimeError("GROQ_API_KEY not set")
 
+    model = os.getenv("GROQ_ARGUMENT_MODEL", DEFAULT_MODEL)
+
     payload = {
-        "model": "openai/gpt-oss-120b",
+        "model": model,
         "temperature": 0,
         "messages": [
             {
@@ -54,24 +78,33 @@ def extract_arguments(
     }
 
     headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
 
-    r = requests.post(
+    response = requests.post(
         GROQ_ENDPOINT,
         headers=headers,
         json=payload,
         timeout=TIMEOUT
     )
 
-    if r.status_code != 200:
-        raise RuntimeError(f"Groq API error {r.status_code}: {r.text}")
+    if response.status_code != 200:
+        raise RuntimeError(
+            f"Groq API error {response.status_code}: {response.text}"
+        )
 
-    data = r.json()
+    data = response.json()
 
     try:
-        content = data["choices"][0]["message"]["content"]
+        choices = data.get("choices")
+        if not choices:
+            raise KeyError("Missing choices in response")
+
+        content = choices[0]["message"]["content"]
         return json.loads(content)
+
     except Exception as e:
-        raise RuntimeError(f"Invalid Groq response: {data}") from e
+        raise RuntimeError(
+            f"Invalid Groq response format: {data}"
+        ) from e

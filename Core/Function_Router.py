@@ -17,6 +17,8 @@
 # ============================================================
 
 import json
+import os
+from pathlib import Path
 from typing import List, Tuple
 
 import numpy as np
@@ -26,10 +28,14 @@ from sklearn.metrics.pairwise import cosine_similarity
 from Core.db_connection import get_connection
 
 # ============================================================
-# MODEL CONFIGURATION
+# MODEL CONFIGURATION (SINGLE SOURCE OF TRUTH)
 # ============================================================
-# Use your fine-tuned model path here
-MODEL_PATH = r"D:\Coding\Projects\Personlised_Intelligent_Shell\Finetuned-gte-large-en-v1.5"
+# Resolution order:
+# 1. ENV variable (preferred)
+# 2. Project-relative fallback
+
+DEFAULT_MODEL_DIR = Path(__file__).resolve().parents[1] / "Finetuned-gte-large-en-v1.5"
+MODEL_PATH = os.getenv("EMBEDDING_MODEL_PATH", str(DEFAULT_MODEL_DIR))
 
 # Thresholds (tuned later, kept explicit)
 AUTO_EXECUTE_THRESHOLD = 0.75

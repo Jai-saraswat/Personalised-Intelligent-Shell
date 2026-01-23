@@ -238,6 +238,7 @@ def get_command_by_name(command_name: str):
         }
     finally:
         conn.close()
+
 # ============================================================
 # SCHEMA ACCESS (AI CORE)
 # ============================================================
@@ -274,3 +275,111 @@ def get_function_schema(command_id: int):
     finally:
         conn.close()
 
+# ============================================================
+# CONVERSATION HISTORY (MULTI-MODE MEMORY)
+# ============================================================
+
+def get_conversation_history(session_id: int, limit: int = 20):
+    """
+    Fetch recent conversation turns for a session.
+    Used by chat mode and session resume.
+    """
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT
+                turn_id,
+                mode,
+                user_input,
+                assistant_output,
+                command_called,
+                status,
+                confidence,
+                context_snapshot,
+                timestamp
+            FROM conversation_history
+            WHERE session_id = ?
+            ORDER BY turn_id DESC
+            LIMIT ?
+            """,
+            (session_id, limit)
+        )
+        return cur.fetchall()
+    finally:
+        conn.close()
+
+
+def get_conversation_turns_after(session_id: int, turn_id: int):
+    """
+    Fetch conversation turns after a given turn_id.
+    Useful for incremental context building.
+    """
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT
+                turn_id,
+                mode,
+                user_input,
+                assistant_output,
+                command_called,
+                status,
+                confidence,
+                context_snapshot,
+                timestamp
+            FROM conversation_history
+            WHERE session_id = ? AND turn_id > ?
+            ORDER BY turn_id ASC
+            """,
+            (session_id, turn_id)
+        )
+        return cur.fetchall()
+    finally:
+        conn.close()
+
+
+def get_last_session_id():
+    """
+    Fetch the most recent session_id.
+    Used for session resume.
+    """
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT session_id
+            FROM sessions
+            ORDER BY start_timestamp DESC
+            LIMIT 1
+            """
+        )
+        row = cur.fetchone()
+        return row[0] if row else None
+    finally:
+        conn.close()
+
+
+def get_last_turn_id(session_id: int):
+    """
+    Fetch the last recorded turn_id for a session.
+    """
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT MAX(turn_id)
+            FROM conversation_history
+            WHERE session_id = ?
+            """,
+            (session_id,)
+        )
+        row = cur.fetchone()
+        return row[0] if row and row[0] is not None else 0
+    finally:
+        conn.close()

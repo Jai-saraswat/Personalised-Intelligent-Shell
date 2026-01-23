@@ -162,3 +162,62 @@ def unregister_entry(name: str):
         conn.commit()
     finally:
         conn.close()
+
+# ============================================================
+# CONVERSATION HISTORY LOGGING
+# ============================================================
+def log_conversation_turn(
+    session_id: int,
+    turn_id: int,
+    mode: str,
+    user_input: str,
+    assistant_output: str,
+    command_called: str = None,
+    status: str = None,
+    confidence: float = None,
+    context_snapshot: str = None
+):
+    """
+    Persist a single conversation turn (rule / ai / chat).
+
+    This function:
+    - Writes immutable conversational facts
+    - Does NOT interpret content
+    - Does NOT manage context
+    """
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO conversation_history
+            (
+                session_id,
+                turn_id,
+                mode,
+                user_input,
+                assistant_output,
+                command_called,
+                status,
+                confidence,
+                context_snapshot,
+                timestamp
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                session_id,
+                turn_id,
+                mode,
+                user_input,
+                assistant_output,
+                command_called,
+                status,
+                confidence,
+                context_snapshot,
+                datetime.now().isoformat()
+            )
+        )
+        conn.commit()
+    finally:
+        conn.close()

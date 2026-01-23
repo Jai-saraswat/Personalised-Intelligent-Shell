@@ -20,7 +20,9 @@ from datetime import datetime
 def command_result(
     status: str,
     message: str,
-    data: dict = None
+    data: dict = None,
+    confidence: float = None,
+    effects: list = None
 ) -> dict:
     """
     Create a standardized command result.
@@ -29,8 +31,11 @@ def command_result(
         status (str): 'success' or 'error'
         message (str): Human-readable output
         data (dict): Optional payload, may include:
-            - action: 'exit', 'clear_screen', etc.
             - content: list or value for display
+        confidence (float): Optional confidence score (AI / chat)
+        effects (list): Optional system effects:
+            - 'exit'
+            - 'clear_screen'
 
     Returns:
         dict: Standardized result object
@@ -42,5 +47,7 @@ def command_result(
         "status": status,
         "message": message,
         "data": data or {},
+        "confidence": confidence,
+        "effects": effects or [],
         "timestamp": datetime.now().isoformat()
     }

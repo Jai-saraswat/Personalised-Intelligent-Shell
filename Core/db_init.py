@@ -126,6 +126,25 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 
 -- ============================================================
+-- 9. Conversation History
+-- Persistent multi-mode (rule / ai / chat) memory.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS conversation_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER NOT NULL,
+    turn_id INTEGER NOT NULL,
+    mode TEXT NOT NULL,
+    user_input TEXT NOT NULL,
+    assistant_output TEXT,
+    command_called TEXT,
+    status TEXT,
+    confidence REAL,
+    context_snapshot TEXT,
+    timestamp TEXT NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES sessions (session_id)
+);
+
+-- ============================================================
 -- INDEXES
 -- ============================================================
 CREATE INDEX IF NOT EXISTS idx_exec_session
@@ -136,6 +155,12 @@ CREATE INDEX IF NOT EXISTS idx_error_session
 
 CREATE INDEX IF NOT EXISTS idx_ai_session
     ON ai_decisions (session_id);
+
+CREATE INDEX IF NOT EXISTS idx_conversation_session
+    ON conversation_history (session_id);
+
+CREATE INDEX IF NOT EXISTS idx_conversation_turn
+    ON conversation_history (session_id, turn_id);
 """
 
 # ============================================================

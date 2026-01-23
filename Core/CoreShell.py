@@ -2,61 +2,61 @@
 # CoreShell.py
 # ============================================================
 # JaiShell Core Orchestrator
-#
-# Responsibilities:
-#   - Boot sequence & CLI UX
-#   - Session lifecycle
-#   - Deterministic routing (rule mode)
-#   - AI delegation (ai mode)
-#   - Output rendering
-#   - Centralized logging
-#
 # ============================================================
-import os
-os.environ.pop("HTTP_PROXY", None)
-os.environ.pop("HTTPS_PROXY", None)
-os.environ.pop("ALL_PROXY", None)
 
+import os
 import sys
 import shlex
 import time
 from datetime import datetime
 from pathlib import Path
 
-# ---------------------------
+# ------------------------------------------------------------
+# PROXY SANITIZATION (requests safety)
+# ------------------------------------------------------------
+os.environ.pop("HTTP_PROXY", None)
+os.environ.pop("HTTPS_PROXY", None)
+os.environ.pop("ALL_PROXY", None)
+
+# ------------------------------------------------------------
 # PATH SETUP
-# ---------------------------
+# ------------------------------------------------------------
 CURRENT_FILE = Path(__file__).resolve()
 ROOT_DIR = CURRENT_FILE.parent.parent
 sys.path.append(str(ROOT_DIR))
 
-# ---------------------------
+# ------------------------------------------------------------
 # CORE MODULES
-# ---------------------------
+# ------------------------------------------------------------
 from Core.db_init import init_db
 from Core.db_writer import (
     log_session_start,
     log_session_end,
     log_command_execution,
-    log_error
+    log_error,
+    log_conversation_turn,
 )
 from Core.command_contract import command_result
+from Core.ContextManager import (
+    create_context,
+    next_turn,
+    set_mode,
+    set_last_command,
+    serialize_context,
+)
 
-# ---------------------------
-# GENERAL COMMANDS
-# ---------------------------
+# ------------------------------------------------------------
+# COMMANDS
+# ------------------------------------------------------------
 from General_Commands.commands import (
     shell_exit,
     shell_help,
     shell_status,
     shell_clear,
     shell_history,
-    shell_logs
+    shell_logs,
 )
 
-# ---------------------------
-# EXTERNAL COMMANDS
-# ---------------------------
 from External_Commands.commands import (
     shell_open,
     shell_register,
@@ -67,24 +67,19 @@ from External_Commands.commands import (
     shell_news,
     shell_weather,
     shell_stocks,
-    shell_download
+    shell_download,
 )
 
-# ---------------------------
-# AI CORE (lazy import later)
-# ---------------------------
-
-# ---------------------------
-# CONFIGURATION
-# ---------------------------
-VERSION = os.getenv("VERSION", "0.2")
+# ------------------------------------------------------------
+# CONFIG
+# ------------------------------------------------------------
 USER_NAME = os.getenv("USER_NAME", "user")
 DEFAULT_MODE = "rule"
 TYPING_SPEED = 0.003
 
-# ---------------------------
+# ------------------------------------------------------------
 # RULE ENGINE MAP
-# ---------------------------
+# ------------------------------------------------------------
 FUNCTION_MAP = {
     "exit": shell_exit,
     "quit": shell_exit,
@@ -106,17 +101,6 @@ FUNCTION_MAP = {
 }
 
 # ============================================================
-# CONTEXT
-# ============================================================
-def create_context():
-    return {
-        "session_id": int(time.time()),
-        "user_name": USER_NAME,
-        "mode": DEFAULT_MODE,
-        "start_time": datetime.now().isoformat(),
-    }
-
-# ============================================================
 # OUTPUT UTILITIES
 # ============================================================
 def type_print(text, delay=TYPING_SPEED):
@@ -132,8 +116,10 @@ def type_print(text, delay=TYPING_SPEED):
 def print_response(result):
     if not result:
         return
+
     if result.get("message"):
         type_print(result["message"])
+
     content = result.get("data", {}).get("content")
     if isinstance(content, list):
         for line in content:
@@ -147,11 +133,13 @@ def main():
     # BOOT
     # ---------------------------
     type_print("Initializing core systems...")
-    type_print("Linking command registry...")
-    type_print("Establishing local memory...\n")
-
     init_db()
-    context = create_context()
+
+    context = create_context(
+        session_id=int(time.time()),
+        user_name=USER_NAME,
+        initial_mode=DEFAULT_MODE,
+    )
 
     try:
         log_session_start(context["session_id"], context["start_time"])
@@ -167,7 +155,7 @@ def main():
     # ---------------------------
     while True:
         try:
-            prompt_label = "AI" if context["mode"] == "ai" else "Rule"
+            prompt_label = context["mode"].upper()
             raw_input = input(f"JaiShell [{prompt_label}] ▸ ").strip()
 
             if not raw_input:
@@ -177,15 +165,24 @@ def main():
             # MODE SWITCHING
             # -----------------------
             if raw_input.lower() == "mode ai":
-                context["mode"] = "ai"
+                set_mode(context, "ai")
                 type_print("Switched to AI mode.")
                 continue
 
             if raw_input.lower() == "mode rule":
-                context["mode"] = "rule"
+                set_mode(context, "rule")
                 type_print("Switched to Rule mode.")
                 continue
 
+            if raw_input.lower() == "mode chat":
+                set_mode(context, "chat")
+                type_print("Switched to Chat mode.")
+                continue
+
+            # -----------------------
+            # TURN START
+            # -----------------------
+            turn_id = next_turn(context)
             result = None
             function_name = None
 
@@ -212,10 +209,18 @@ def main():
             # -----------------------
             # AI MODE
             # -----------------------
-            else:
-                from AICore import ai_engine
+            elif context["mode"] == "ai":
+                from AICore.AICore import ai_engine
                 function_name = "ai_engine"
                 result = ai_engine(raw_input, context)
+
+            # -----------------------
+            # CHAT MODE
+            # -----------------------
+            else:
+                from ChatCore.ChatCore import chat_engine
+                function_name = "chat_engine"
+                result = chat_engine(raw_input, context)
 
             # -----------------------
             # OUTPUT
@@ -231,8 +236,21 @@ def main():
                     raw_input=raw_input,
                     status=result.get("status"),
                     mode=context["mode"],
-                    function_called=function_name
+                    function_called=function_name,
                 )
+
+                log_conversation_turn(
+                    session_id=context["session_id"],
+                    turn_id=turn_id,
+                    mode=context["mode"],
+                    user_input=raw_input,
+                    assistant_output=result.get("message"),
+                    command_called=function_name,
+                    status=result.get("status"),
+                    confidence=result.get("confidence"),
+                    context_snapshot=serialize_context(context),
+                )
+
             except Exception as e:
                 type_print(f"Logging error: {e}")
 
@@ -241,25 +259,31 @@ def main():
                     context["session_id"],
                     "CommandError",
                     result.get("message"),
-                    function_name or "unknown"
+                    function_name or "unknown",
                 )
 
-            action = result.get("data", {}).get("action")
-            if action == "exit":
-                break
-            if action == "clear_screen":
-                print("\n" * 100)
+            set_last_command(context, function_name)
+
+            # -----------------------
+            # EFFECTS
+            # -----------------------
+            for effect in result.get("effects", []):
+                if effect == "exit":
+                    raise KeyboardInterrupt
+                if effect == "clear_screen":
+                    print("\n" * 100)
 
         except KeyboardInterrupt:
-            type_print("\nForce close detected.")
+            type_print("\nSession terminating.")
             break
+
         except Exception as e:
             type_print(f"Critical shell error: {e}")
             log_error(
                 context["session_id"],
                 "CriticalCrash",
                 str(e),
-                "main_loop"
+                "main_loop",
             )
 
     # ---------------------------
@@ -268,7 +292,7 @@ def main():
     log_session_end(
         context["session_id"],
         graceful=True,
-        end_timestamp=datetime.now().isoformat()
+        end_timestamp=datetime.now().isoformat(),
     )
     type_print("Session closed.")
 

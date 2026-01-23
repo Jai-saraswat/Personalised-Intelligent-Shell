@@ -9,10 +9,15 @@
 # - Which commands are destructive
 #
 # SAFE TO RUN MULTIPLE TIMES.
+# MUST be executed as a script.
 # ============================================================
 
 import json
 from Core.db_connection import get_connection
+
+# ============================================================
+# COMMAND DEFINITIONS (AUTHORITATIVE)
+# ============================================================
 
 COMMANDS = [
 
@@ -186,30 +191,47 @@ COMMANDS = [
 ]
 
 # ============================================================
-# INSERT INTO DATABASE
+# SEED ROUTINE
 # ============================================================
 
-conn = get_connection()
-cur = conn.cursor()
+def seed_commands():
+    """
+    Insert authoritative command definitions into the database.
+    Safe to run multiple times.
+    """
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
 
-for cmd in COMMANDS:
-    cur.execute(
-        """
-        INSERT OR IGNORE INTO commands
-        (command_name, category, description, schema_json, is_destructive, requires_confirmation)
-        VALUES (?, ?, ?, ?, ?, ?)
-        """,
-        (
-            cmd["command_name"],
-            cmd["category"],
-            cmd["description"],
-            json.dumps(cmd["schema"]),
-            cmd["is_destructive"],
-            cmd["requires_confirmation"]
-        )
-    )
+        for cmd in COMMANDS:
+            cur.execute(
+                """
+                INSERT OR IGNORE INTO commands
+                (command_name, category, description, schema_json, is_destructive, requires_confirmation)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    cmd["command_name"],
+                    cmd["category"],
+                    cmd["description"],
+                    json.dumps(cmd["schema"]),
+                    cmd["is_destructive"],
+                    cmd["requires_confirmation"]
+                )
+            )
 
-conn.commit()
-conn.close()
+        conn.commit()
+        print(f"Seeded {len(COMMANDS)} commands into database.")
 
-print(f"Seeded {len(COMMANDS)} commands into database.")
+    except Exception:
+        conn.rollback()
+        raise
+
+    finally:
+        conn.close()
+
+# ============================================================
+# SCRIPT ENTRY POINT
+# ============================================================
+if __name__ == "__main__":
+    seed_commands()

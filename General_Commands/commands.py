@@ -29,7 +29,7 @@ def shell_exit(args, context):
     return command_result(
         status="success",
         message="Exiting shell...",
-        data={"action": "exit"}
+        effects=["exit"]
     )
 
 
@@ -40,7 +40,7 @@ def shell_clear(args, context):
     return command_result(
         status="success",
         message="Screen cleared.",
-        data={"action": "clear_screen"}
+        effects=["clear_screen"]
     )
 
 # ============================================================
@@ -68,10 +68,10 @@ def shell_status(args, context):
     content = [
         "────────────────────────────────────────",
         "Shell Status",
-        f"User         : {user}",
-        f"Mode         : {mode}",
-        f"Session ID   : {session_id}",
-        f"Commands Run : {command_count}",
+        f"User          : {user}",
+        f"Mode          : {mode}",
+        f"Session ID    : {session_id}",
+        f"Commands Run  : {command_count}",
         f"Total Sessions: {total_sessions}",
         "────────────────────────────────────────"
     ]
@@ -93,6 +93,11 @@ def shell_help(args, context):
     content = [
         "────────────────────────────────────────",
         "JaiShell Help Menu",
+        "",
+        "Modes:",
+        "  mode rule     - Deterministic shell commands",
+        "  mode ai       - AI-assisted command execution",
+        "  mode chat     - Conversational help (no execution)",
         "",
         "General:",
         "  status        - View session details",
@@ -130,7 +135,7 @@ def shell_help(args, context):
 
 def shell_history(args, context):
     """
-    Show recent command history.
+    Show recent command history (global).
     """
     limit = 10
     if args and args[0].isdigit():
@@ -167,7 +172,7 @@ def shell_history(args, context):
 
 def shell_logs(args, context):
     """
-    Show recent error logs.
+    Show recent error logs (global).
     """
     try:
         rows = get_recent_errors(5)

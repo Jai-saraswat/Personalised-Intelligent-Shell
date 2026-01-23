@@ -23,14 +23,6 @@ from Core.db_writer import register_entry, unregister_entry
 from Core.db_reader import get_registry_entry, get_registry_entries
 
 # ============================================================
-# CONFIG
-# ============================================================
-from dotenv import load_dotenv
-load_dotenv()
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_ENDPOINT = os.getenv("GROQ_ENDPOINT", "https://api.groq.com/openai/v1/chat/completions")
-
-# ============================================================
 # OPEN / REGISTRY
 # ============================================================
 def shell_open(args, context):
@@ -181,28 +173,22 @@ def shell_read(args, context):
     )
 
 # ============================================================
-# SEARCH (WEB)
+# SEARCH / INFO
 # ============================================================
 def shell_search(args, context):
     if not args:
         return command_result("error", "Usage: search <query>")
 
     query = "+".join(args)
-    url = f"https://www.google.com/search?q={query}"
-    webbrowser.open(url)
-
+    webbrowser.open(f"https://www.google.com/search?q={query}")
     return command_result("success", f"Search opened for: {' '.join(args)}")
 
-# ============================================================
-# NEWS
-# ============================================================
+
 def shell_news(args, context):
     webbrowser.open("https://news.google.com")
     return command_result("success", "Opened latest news.")
 
-# ============================================================
-# WEATHER
-# ============================================================
+
 def shell_weather(args, context):
     if not args:
         return command_result("error", "Usage: weather <location>")
@@ -211,9 +197,7 @@ def shell_weather(args, context):
     webbrowser.open(f"https://www.google.com/search?q=weather+{loc}")
     return command_result("success", f"Weather lookup opened for {' '.join(args)}.")
 
-# ============================================================
-# STOCKS
-# ============================================================
+
 def shell_stocks(args, context):
     if not args:
         return command_result("error", "Usage: stocks <symbol>")
@@ -244,14 +228,14 @@ def shell_download(args, context):
     return command_result("success", f"Downloaded to {dest}")
 
 # ============================================================
-# SUMMARIZE (GROQ)
+# SUMMARIZE (GROQ – RAW REST)
 # ============================================================
 def shell_summarize(args, context):
     """
     Summarize text or a file using Groq LLM.
     """
-
-    if not GROQ_API_KEY:
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
         return command_result(
             "error",
             "GROQ_API_KEY not set in environment."
@@ -263,9 +247,6 @@ def shell_summarize(args, context):
             "Usage: summarize <text or file>"
         )
 
-    # ------------------------------------
-    # Resolve input (file or raw text)
-    # ------------------------------------
     raw_input = " ".join(args)
     path = Path(raw_input)
 
@@ -275,25 +256,21 @@ def shell_summarize(args, context):
         else:
             text = raw_input
     except Exception as e:
-        return command_result(
-            "error",
-            f"Failed to read input: {e}"
-        )
+        return command_result("error", f"Failed to read input: {e}")
 
     if not text.strip():
-        return command_result(
-            "error",
-            "Nothing to summarize."
-        )
+        return command_result("error", "Nothing to summarize.")
 
-    # Safety cap (prevents runaway tokens)
-    text = text[:8000]
+    text = text[:8000]  # safety cap
 
-    # ------------------------------------
-    # Groq REST request
-    # ------------------------------------
+    model = os.getenv("GROQ_SUMMARY_MODEL", "openai/gpt-oss-120b")
+    endpoint = os.getenv(
+        "GROQ_ENDPOINT",
+        "https://api.groq.com/openai/v1/chat/completions"
+    )
+
     payload = {
-        "model": "openai/gpt-oss-120b",
+        "model": model,
         "temperature": 0.2,
         "messages": [
             {
@@ -312,9 +289,9 @@ def shell_summarize(args, context):
 
     try:
         response = requests.post(
-            GROQ_ENDPOINT,
+            endpoint,
             headers={
-                "Authorization": f"Bearer {GROQ_API_KEY}",
+                "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json"
             },
             json=payload,
@@ -331,14 +308,8 @@ def shell_summarize(args, context):
         summary = data["choices"][0]["message"]["content"]
 
     except Exception as e:
-        return command_result(
-            "error",
-            f"Summarization failed: {e}"
-        )
+        return command_result("error", f"Summarization failed: {e}")
 
-    # ------------------------------------
-    # Final result
-    # ------------------------------------
     return command_result(
         "success",
         "Summary:",
