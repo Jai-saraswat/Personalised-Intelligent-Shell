@@ -4,136 +4,146 @@
 
 ## 📝 Description
 
-Personalised Intelligent Shell is a **state-of-the-art configurable shell interface** that combines the strengths of traditional command-line interfaces with the power of **AI-driven intent understanding**. It is tailored for advanced developers and automation engineers who value precision and safety while leveraging AI capabilities to simplify complex workflows.
-
-Gone are the days of typing long and confusing command sequences! With **natural language understanding**, the shell empowers users to interact using plain text while ensuring **deterministic execution pathways** for safety and compliance. 
+The Personalised Intelligent Shell is a dynamic and AI-infused CLI (Command Line Interface) designed to merge the power of traditional shell scripting with enhanced AI-driven capabilities. This shell empowers users to interact seamlessly through natural language commands, deterministic rule-based workflows, robust session management, and customizable shortcuts.
 
 ---
 
 ## ✨ Features
 
-### Core Objectives:
-1. **AI-Powered Natural Language Commands**  
-    - Translate human-like instructions directly into executable shell commands.
-    - Example: `"Check the weather in New York"` or `"Download this file (URL)"`.
+### Core Capabilities:
+1. **AI-Powered Command Interpretation**  
+    Unleashes AI to:
+    - Translate user instructions into executable commands.
+    - Parse arguments using pre-trained language models seamlessly.
+    - Produce deterministic and schema-valid results.
 
-2. **Rule-Based Deterministic Mode**  
-    - Offers a traditional shell with strict keyword-based mappings for system commands.
-    - No AI involved—making it safe, predictable, and efficient for automation.
+2. **Mode-Based Operation:**
+    - **Rule Mode:** Traditional CLI logic, strict keyword mappings.
+    - **AI Mode:** Combines reasoning and intent-matching for shell tasks.
+    - **Chat Mode:** Provides assistance, explanations, and conversational engagement.
 
-3. **Session Persistence**  
-    - Logs session history, captures executed commands, errors, and offers full traceability.
+3. **Session Management**:
+    - Context persistency with serialized session handling.
+    - Tracks command execution, logs, and captures conversational turns.
 
-4. **Safety First** 🎯
-    - Ensures clear segregation between reasoning and execution to prevent unwanted or hallucinated outputs.
-    - Commands execute deterministically through strict schemas and AI pipelines.
+4. **Safety & Reliability** 🎯:
+    - Commands routed via strict confirmation gates.
+    - Embedding models ensure intent disambiguation with explainable confidence scores.
 
-5. **Customizable Commands**  
-    - Easily register applications, folders, and shortcuts for rapid tasks.
-    - Includes extensible options to adjust behavior according to needs.
+5. **User-Extendable Registries**:
+    - Register custom commands, applications, and shortcuts for immediate access.
+    - Strong database constraints ensure integrity.
+
+6. **System Versatility**:
+    - Cross-platform compatibility (Windows, macOS, Linux).
+    - Integrations for file manipulations, external tools, logs, and more.
 
 ---
 
-## 💡 Usage
+## 📦 Requirements
 
-### Running the Shell
+Ensure the following dependencies are installed:
 
-To run the shell locally, follow these steps:
+- Python 3.10+
+- Modern pip (>=21.0)
 
-1. **Install Dependencies:**
-   ```bash
-   pip install -r Requirements.txt
-   ```
+Install required Python libraries:
+```bash
+pip install -r Requirements.txt
+```
 
-2. **Start the Shell:**
+Download the fine-tuned model weights:
+| **Model File**             | **Download Link**                                                                                  |
+|----------------------------|---------------------------------------------------------------------------------------------------|
+| Finetuned-gte-large-en-v1.5 | [📂 Download from Google Drive](https://drive.google.com/file/d/1tnAGQwr1tUUYgTLwp6oLiTOB8oqCXfd2/view?usp=sharing) |
+
+Place the downloaded model file in the root directory (or reconfigure your model path).
+
+---
+
+## 🚀 Quickstart
+
+1. Start the shell:
    ```bash
    python Core/CoreShell.py
    ```
 
-3. **Modes of Operation:**
-   - **Rule Mode:**  
-     Use direct system-like commands (e.g., `open chrome`, `clean temp`, `read file.txt`).
-   - **AI Mode:**  
-     Utilize natural language for tasks (e.g., `"Summarize this document"`, `"Search for the latest news"`).
+2. Switch between operational modes:
+   ```
+   JaiShell [RULE] >> mode ai
+   JaiShell [AI] >> mode chat
+   ```
 
-### Core Commands
+3. Use core commands such as:
+   - `read myFile.txt`  
+   - `summarize "This is a text to analyze!"`  
+   - `weather "New York"`
 
-| **Command**    | **Functionality**                           | **Example**                         |
-|----------------|-------------------------------------------|-------------------------------------|
-| `open`         | Open registered applications, folders, or URLs | `open chrome`                      |
-| `clean`        | Clean temporary files or folder paths.     | `clean temp`                       |
-| `read`         | Read local files from a given directory.   | `read notes.txt`                   |
-| `weather`      | Retrieve the latest weather updates.       | `weather New York`                 |
-| `summarize`    | Summarize text or the contents of a file.  | `summarize report.txt`             |
+Use the `help` command to view all available options.
 
-For a detailed list of commands, switch to **help mode** and type:
-```bash
-help
-```
----
-
-## 📥 Model Weights (Required)
-
-To run the AI Mode effectively, you must download the fine-tuned embedding model:
-
-| Model Name                | Download Link                                                                                      |
-|---------------------------|---------------------------------------------------------------------------------------------------|
-| **Finetuned-gte-large-en-v1.5** | [📂 Download from Google Drive](https://drive.google.com/file/d/1tnAGQwr1tUUYgTLwp6oLiTOB8oqCXfd2/view?usp=sharing) |
-
-> Place the downloaded model file in the root directory or update your configuration.
+### Key Modes:
+| **Mode**       | **Description**                                                                 |
+|----------------|---------------------------------------------------------------------------------|
+| Rule Mode      | Executes deterministic commands with strict schema definitions.                 |
+| AI Mode        | Enables natural language-driven command processing & automation.                |
+| Chat Mode      | Conversational interface providing assistance, explanations, and no execution.  |
 
 ---
 
----
+## 🛠 Command Highlights
 
-## 📋 Architecture
+| Command         | Description                                      | Example Command                       |
+|------------------|--------------------------------------------------|---------------------------------------|
+| **open**        | Opens a registry shortcut, URL, or folder        | `open myShortcut`                     |
+| **register**    | Registers any shortcut (folder, app)             | `register myShortcut path/to/file`    |
+| **read**        | Reads content from a file                        | `read notes.md`                       |
+| **search**      | Web searches simplified                          | `search current innovations in AI`    |
+| **weather**     | Checks the weather of any geographic location    | `weather Tokyo`                       |
+| **summarize**   | Summarizes either text or file content            | `summarize sample.txt`                |
 
-### How It Works:
-1. **Rule-Based Deterministic Workflow:**  
-    - Executes commands through predefined mappings directly.
-    - Ensures full control by skipping AI interpretation.
-
-2. **AI-Powered Execution Pipeline:**
-    - **Intent Identification:** Classifies the user's input based on their intent.
-    - **Argument Parsing + Validation:** Extracts arguments securely without assumptions.
-    - **Safe Execution:** Executes commands only if verified against pre-defined schemas.
-
----
-
-## 🚀 Roadmap and Milestones 🛣️
-
-### Future Enhancements:
-- **Improved Intent Prediction**:
-    - Advanced classification mechanisms for distinguishing chat, execution, and hybrid interactions.
-  
-- **API Integrations:**
-    - Extend native support to integrate external APIs such as:
-      - **News Feeds** 📰 
-      - **Stock Market Data** 📈
-      - **System Health Monitoring** ⚙️
-
-- **Regex-Based Argument Validation:**
-    - Speedier and more precise argument parsing mechanisms.
-
-- **Advanced Context Retention:**
-    - Leverage prior session memory for richer interactions and context-aware recommendations.
+Check `help` for extended capabilities.
 
 ---
 
-## 📌 Version & Author
+## 📋 Architecture Overview
 
-**Version:** `0.2`  
-**Author:** Jai Saraswat  
-[GitHub Profile](https://github.com/Jai-saraswat)
+1. **Command Pipeline and Registry:**
+   - Based on `command_contract` for output structure enforcement.
+   - Centralized function and action routing handled independently from execution.
+
+2. **AI Execution Safety**:
+   - Robust schema enforcement for argument validation.
+   - Handles destructive actions with user confirmation built-in.
+
+3. **Database Layer**:
+   - SQLite-powered persistence of sessions, logs, and registry management.
+
+4. **Embedding and Routing Models**:
+   - `sentence-transformers` enable reliable semantic intent mapping.
+   - Powered by the Groq LLM for secure external API calls.
+
+5. **Session Awareness**:
+   - Tracks historical turns, command invocations, and global statistics.
 
 ---
 
-## 👥 Audience
+## 📚 Contribution Guidelines
 
-This project is ideal for:
-- **Automation Engineers** looking to simplify workflows.
-- **Developers** leveraging AI for better command orchestration.
-- **ML Enthusiasts** eager to explore integrations of rule-based and AI approaches for CLI interfaces.
-- **Security-Focused Teams** needing controlled automation tools.
+Contributing to the project is simple:
+- Clone the repository.
+- Use feature branches for any changes.
+- Commit responsibly following [GitHub best practices](https://docs.github.com/en/get-started/using-git).
 
-Feel free to contribute, raise issues, or share feedback!
+---
+
+## 👨‍💻 Author and Contact
+
+**Jai Saraswat**  
+- GitHub: [Jai-saraswat](https://github.com/Jai-saraswat)
+- Email: jai.23gcebds005@galgotiacollege.edu
+
+---
+
+## ⚠️ Disclaimer
+
+The "Personalised Intelligent Shell" is actively evolving. Expect breaking changes in beta versions. Always test thoroughly in individual sandbox environments before employing.
