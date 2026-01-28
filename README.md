@@ -66,6 +66,7 @@ JaiShell uses **SQLite** with WAL mode for ACID compliance:
 - **ai_decisions**: Explainability layer with confidence scores
 - **conversation_history**: Multi-turn conversation memory
 - **registry**: User-defined shortcuts (apps, folders, URLs)
+- **settings**: Global configuration store
 - **errors**: Comprehensive error logging
 
 ### AI/ML Pipeline
@@ -165,7 +166,7 @@ python Core/db_vector_manager.py
 
 **What each step does:**
 - **db_init.py**: Creates SQLite database with 9 tables (sessions, commands, embeddings, etc.)
-- **seed_commands.py**: Populates `commands` table with 18 predefined commands
+- **seed_commands.py**: Populates `commands` table with 19 predefined commands
 - **db_vector_manager.py**: Generates 1024-dim embeddings for all commands using fine-tuned model
 
 ⚠️ **Important**: Re-run `db_vector_manager.py` whenever you:
@@ -284,38 +285,38 @@ Example: register myapp "C:\Apps\myapp.exe" program
 | `wifi-status` | - | Current WiFi network | `wifi-status` |
 
 ### Server Management (Custom)
-| Command | Arguments | Description |
-|---------|-----------|-------------|
-| `server-state` | - | Check server reachability |
-| `server-health` | - | CPU, RAM, GPU, temp stats |
-| `server-last-boot` | - | Last boot timestamp |
-| `server-ssh` | - | Open admin PowerShell |
-| `nextcloud-status` | - | Check Nextcloud service |
+| Command | Arguments | Description | Example |
+|---------|-----------|-------------|---------|
+| `server-state` | - | Check server reachability | `server-state` |
+| `server-health` | - | CPU, RAM, GPU, temp stats | `server-health` |
+| `server-last-boot` | - | Last boot timestamp | `server-last-boot` |
+| `server-ssh` | - | Open admin PowerShell | `server-ssh` |
+| `nextcloud-status` | - | Check Nextcloud service | `nextcloud-status` |
 
 ### GitHub Integration
-| Command | Arguments | Description |
-|---------|-----------|-------------|
-| `github-repos` | - | List your repositories |
-| `github-repo-summary` | `<repo>` | Repository overview |
-| `github-recent-commits` | `<repo>` | Recent commit history |
-| `github-repo-activity` | `<repo>` | Activity metrics |
-| `github-languages` | `<repo>` | Language breakdown |
+| Command | Arguments | Description | Example |
+|---------|-----------|-------------|---------|
+| `github-repos` | - | List your repositories | `github-repos` |
+| `github-repo-summary` | `<repo>` | Repository overview | `github-repo-summary my-project` |
+| `github-recent-commits` | `<repo>` | Recent commit history | `github-recent-commits my-project` |
+| `github-repo-activity` | `<repo>` | Activity metrics | `github-repo-activity my-project` |
+| `github-languages` | `<repo>` | Language breakdown | `github-languages my-project` |
 
 ### AI & Analytics
-| Command | Arguments | Description |
-|---------|-----------|-------------|
-| `summarize` | `<file_path>` | AI-powered file summarization |
-| `analytics` | - | Shell usage analytics |
+| Command | Arguments | Description | Example |
+|---------|-----------|-------------|---------|
+| `summarize` | `<file_path>` | AI-powered file summarization | `summarize notes.txt` |
+| `analytics` | - | Shell usage analytics | `analytics` |
 
 ### Shell Control
-| Command | Description |
-|---------|-------------|
-| `help` | Show available commands |
-| `status` | Current session info |
-| `history` | Command history |
-| `logs` | View error logs |
-| `clear` | Clear screen |
-| `exit` / `quit` | Close shell |
+| Command | Arguments | Description | Example |
+|---------|-----------|-------------|---------|
+| `help` | - | Show available commands | `help` |
+| `status` | - | Current session info | `status` |
+| `history` | - | Command history | `history` |
+| `logs` | - | View error logs | `logs` |
+| `clear` | - | Clear screen | `clear` |
+| `exit` / `quit` | - | Close shell | `exit` |
 
 ---
 
@@ -570,10 +571,10 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 If you use JaiShell in your research or project, please cite:
 
 ```bibtex
-@software{jaishell2024,
+@software{jaishell2026,
   author = {Saraswat, Jai},
   title = {JaiShell: Personalised Intelligent Shell},
-  year = {2024},
+  year = {2026},
   version = {0.5},
   url = {https://github.com/Jai-saraswat/Personalised-Intelligent-Shell}
 }
