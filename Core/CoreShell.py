@@ -57,18 +57,7 @@ from General_Commands.commands import (
     shell_logs,
 )
 
-from External_Commands.commands import (
-    shell_open,
-    shell_register,
-    shell_clean,
-    shell_make,
-    shell_read,
-    shell_search,
-    shell_news,
-    shell_weather,
-    shell_stocks,
-    shell_download,
-)
+from External_Commands.commands import *
 
 # ------------------------------------------------------------
 # CONFIG
@@ -81,6 +70,9 @@ TYPING_SPEED = 0.003
 # RULE ENGINE MAP
 # ------------------------------------------------------------
 FUNCTION_MAP = {
+    # --------------------------------------------------------
+    # CORE / GENERAL
+    # --------------------------------------------------------
     "exit": shell_exit,
     "quit": shell_exit,
     "help": shell_help,
@@ -88,16 +80,49 @@ FUNCTION_MAP = {
     "clear": shell_clear,
     "history": shell_history,
     "logs": shell_logs,
+
+    # --------------------------------------------------------
+    # REGISTRY
+    # --------------------------------------------------------
     "open": shell_open,
     "register": shell_register,
-    "clean": shell_clean,
-    "make": shell_make,
-    "read": shell_read,
-    "search": shell_search,
+
+    # --------------------------------------------------------
+    # SERVER
+    # --------------------------------------------------------
+    "server-last-boot": shell_server_last_boot_time,
+    "server-state": shell_server_state,
+    "server-ssh": shell_server_ssh_helper,
+    "nextcloud-status": shell_server_nextcloud_status,
+    "server-health": shell_server_health,
+
+    # --------------------------------------------------------
+    # GITHUB
+    # --------------------------------------------------------
+    "github-repos": shell_github_repos,
+    "github-repo-summary": shell_github_repo_summary,
+    "github-recent-commits": shell_github_recent_commits,
+    "github-repo-activity": shell_github_repo_activity,
+    "github-languages": shell_github_languages,
+
+    # --------------------------------------------------------
+    # INFORMATIVE
+    # --------------------------------------------------------
     "news": shell_news,
     "weather": shell_weather,
-    "stocks": shell_stocks,
-    "download": shell_download,
+
+    # --------------------------------------------------------
+    # LOCAL SYSTEM
+    # --------------------------------------------------------
+    "system-specs": shell_system_specs,
+    "system-uptime": shell_system_uptime,
+    "wifi-status": shell_current_wifi,
+
+    # --------------------------------------------------------
+    # AI / ANALYTICS
+    # --------------------------------------------------------
+    "summarize": shell_summarize,
+    "analytics": shell_analytics_overview,
 }
 
 # ============================================================

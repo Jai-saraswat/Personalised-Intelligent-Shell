@@ -3,13 +3,7 @@
 # ============================================================
 # Seeds the authoritative command registry for JaiShell.
 #
-# This script defines:
-# - What commands exist
-# - How AI understands them
-# - Which commands are destructive
-#
 # SAFE TO RUN MULTIPLE TIMES.
-# MUST be executed as a script.
 # ============================================================
 
 import json
@@ -21,19 +15,15 @@ from Core.db_connection import get_connection
 
 COMMANDS = [
 
-    # ---------------------------
+    # ========================================================
     # SYSTEM / REGISTRY
-    # ---------------------------
+    # ========================================================
     {
         "command_name": "open",
         "category": "system.registry",
         "description": "Open a registered application, folder, or URL.",
         "schema": {
-            "name": {
-                "type": "string",
-                "required": True,
-                "description": "Registered name to open"
-            }
+            "name": {"type": "string", "required": True}
         },
         "is_destructive": 0,
         "requires_confirmation": 0,
@@ -55,136 +45,174 @@ COMMANDS = [
         "requires_confirmation": 0,
     },
 
-    # ---------------------------
-    # FILE / SYSTEM
-    # ---------------------------
+    # ========================================================
+    # SERVER (NO USER ARGS)
+    # ========================================================
     {
-        "command_name": "clean",
-        "category": "system.cleanup",
-        "description": "Clean system folders such as temp or downloads.",
-        "schema": {
-            "target": {
-                "type": "enum",
-                "values": ["temp", "downloads"],
-                "required": True
-            }
-        },
-        "is_destructive": 1,
-        "requires_confirmation": 1,
+        "command_name": "server-last-boot",
+        "category": "server.monitoring",
+        "description": "Check the last boot time of the server.",
+        "schema": {},
+        "is_destructive": 0,
+        "requires_confirmation": 0,
     },
     {
-        "command_name": "make",
-        "category": "file.create",
-        "description": "Create a file or folder.",
+        "command_name": "server-state",
+        "category": "server.monitoring",
+        "description": "Check whether the server is reachable.",
+        "schema": {},
+        "is_destructive": 0,
+        "requires_confirmation": 0,
+    },
+    {
+        "command_name": "server-ssh",
+        "category": "server.control",
+        "description": "Open an admin PowerShell session to manage the server.",
+        "schema": {},
+        "is_destructive": 0,
+        "requires_confirmation": 0,
+    },
+    {
+        "command_name": "nextcloud-status",
+        "category": "server.service",
+        "description": "Check if the Nextcloud service is reachable.",
+        "schema": {},
+        "is_destructive": 0,
+        "requires_confirmation": 0,
+    },
+    {
+        "command_name": "server-health",
+        "category": "server.monitoring",
+        "description": "Fetch CPU, RAM, GPU and temperature data from the server.",
+        "schema": {},
+        "is_destructive": 0,
+        "requires_confirmation": 0,
+    },
+
+    # ========================================================
+    # GITHUB
+    # ========================================================
+    {
+        "command_name": "github-repos",
+        "category": "github.monitoring",
+        "description": "List repositories from your GitHub account.",
+        "schema": {},
+        "is_destructive": 0,
+        "requires_confirmation": 0,
+    },
+    {
+        "command_name": "github-repo-summary",
+        "category": "github.monitoring",
+        "description": "Show a summary of a specific GitHub repository.",
         "schema": {
-            "type": {
-                "type": "enum",
-                "values": ["file", "folder"],
-                "required": True
-            },
-            "name": {
-                "type": "string",
-                "required": True
-            }
+            "repo": {"type": "string", "required": True}
         },
         "is_destructive": 0,
         "requires_confirmation": 0,
     },
     {
-        "command_name": "read",
-        "category": "file.read",
-        "description": "Read and display the contents of a file.",
+        "command_name": "github-recent-commits",
+        "category": "github.monitoring",
+        "description": "Show recent commits of a GitHub repository.",
         "schema": {
-            "filename": {
-                "type": "string",
-                "required": True
-            }
+            "repo": {"type": "string", "required": True}
+        },
+        "is_destructive": 0,
+        "requires_confirmation": 0,
+    },
+    {
+        "command_name": "github-repo-activity",
+        "category": "github.monitoring",
+        "description": "Check recent activity of a GitHub repository.",
+        "schema": {
+            "repo": {"type": "string", "required": True}
+        },
+        "is_destructive": 0,
+        "requires_confirmation": 0,
+    },
+    {
+        "command_name": "github-languages",
+        "category": "github.monitoring",
+        "description": "Show language breakdown of a GitHub repository.",
+        "schema": {
+            "repo": {"type": "string", "required": True}
         },
         "is_destructive": 0,
         "requires_confirmation": 0,
     },
 
-    # ---------------------------
-    # WEB / INFO
-    # ---------------------------
-    {
-        "command_name": "search",
-        "category": "web.search",
-        "description": "Search the web for information.",
-        "schema": {
-            "query": {
-                "type": "string",
-                "required": True
-            }
-        },
-        "is_destructive": 0,
-        "requires_confirmation": 0,
-    },
+    # ========================================================
+    # INFORMATIVE
+    # ========================================================
     {
         "command_name": "news",
-        "category": "web.info",
-        "description": "View the latest news headlines.",
+        "category": "info.news",
+        "description": "Fetch the latest news headlines.",
         "schema": {},
         "is_destructive": 0,
         "requires_confirmation": 0,
     },
     {
         "command_name": "weather",
-        "category": "web.info",
-        "description": "Check the weather for a location.",
+        "category": "info.weather",
+        "description": "Fetch weather information for a city.",
         "schema": {
-            "location": {
-                "type": "string",
-                "required": True
-            }
-        },
-        "is_destructive": 0,
-        "requires_confirmation": 0,
-    },
-    {
-        "command_name": "stocks",
-        "category": "web.finance",
-        "description": "View stock prices for a symbol.",
-        "schema": {
-            "symbol": {
-                "type": "string",
-                "required": True
-            }
+            "city": {"type": "string", "required": True}
         },
         "is_destructive": 0,
         "requires_confirmation": 0,
     },
 
-    # ---------------------------
-    # NETWORK
-    # ---------------------------
+    # ========================================================
+    # LOCAL SYSTEM
+    # ========================================================
     {
-        "command_name": "download",
-        "category": "network.download",
-        "description": "Download a file from a URL.",
-        "schema": {
-            "url": {
-                "type": "string",
-                "required": True
-            }
-        },
+        "command_name": "system-specs",
+        "category": "system.monitoring",
+        "description": "Display local system specifications.",
+        "schema": {},
+        "is_destructive": 0,
+        "requires_confirmation": 0,
+    },
+    {
+        "command_name": "system-uptime",
+        "category": "system.monitoring",
+        "description": "Show local machine uptime.",
+        "schema": {},
+        "is_destructive": 0,
+        "requires_confirmation": 0,
+    },
+    {
+        "command_name": "wifi-status",
+        "category": "system.monitoring",
+        "description": "Show currently connected WiFi network.",
+        "schema": {},
         "is_destructive": 0,
         "requires_confirmation": 0,
     },
 
-    # ---------------------------
+    # ========================================================
     # AI
-    # ---------------------------
+    # ========================================================
     {
         "command_name": "summarize",
         "category": "ai.text",
-        "description": "Summarize text or the contents of a file.",
+        "description": "Summarize the contents of a file using AI.",
         "schema": {
-            "text": {
-                "type": "string",
-                "required": True
-            }
+            "file_path": {"type": "string", "required": True}
         },
+        "is_destructive": 0,
+        "requires_confirmation": 0,
+    },
+
+    # ========================================================
+    # ANALYTICS
+    # ========================================================
+    {
+        "command_name": "analytics",
+        "category": "system.analytics",
+        "description": "Show analytics about sessions, commands, and errors.",
+        "schema": {},
         "is_destructive": 0,
         "requires_confirmation": 0,
     },
@@ -195,14 +223,9 @@ COMMANDS = [
 # ============================================================
 
 def seed_commands():
-    """
-    Insert authoritative command definitions into the database.
-    Safe to run multiple times.
-    """
     conn = get_connection()
     try:
         cur = conn.cursor()
-
         for cmd in COMMANDS:
             cur.execute(
                 """
@@ -216,22 +239,13 @@ def seed_commands():
                     cmd["description"],
                     json.dumps(cmd["schema"]),
                     cmd["is_destructive"],
-                    cmd["requires_confirmation"]
+                    cmd["requires_confirmation"],
                 )
             )
-
         conn.commit()
         print(f"Seeded {len(COMMANDS)} commands into database.")
-
-    except Exception:
-        conn.rollback()
-        raise
-
     finally:
         conn.close()
 
-# ============================================================
-# SCRIPT ENTRY POINT
-# ============================================================
 if __name__ == "__main__":
     seed_commands()

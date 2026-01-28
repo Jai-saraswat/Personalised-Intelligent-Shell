@@ -25,25 +25,29 @@ from Core.db_connection import get_connection
 # ============================================================
 # MODEL CONFIGURATION (SINGLE SOURCE OF TRUTH)
 # ============================================================
-# Resolution order:
-# 1. ENV variable (preferred, prod-safe)
-# 2. Project-relative fallback (dev-safe)
 
 DEFAULT_MODEL_DIR = Path(__file__).resolve().parents[1] / "Finetuned-gte-large-en-v1.5"
-MODEL_PATH = os.getenv("EMBEDDING_MODEL_PATH", str(DEFAULT_MODEL_DIR))
+MODEL_PATH = Path(os.getenv("EMBEDDING_MODEL_PATH", DEFAULT_MODEL_DIR))
 
 # ============================================================
 # EMBEDDING PIPELINE
 # ============================================================
+
 def generate_and_store_command_embeddings():
     """
     Generate embeddings for all commands defined in the database
     and store them in the command_embeddings table.
     """
-    print(f"Loading embedding model from: {MODEL_PATH}")
+
+    if not MODEL_PATH.exists():
+        raise RuntimeError(
+            f"Embedding model not found at: {MODEL_PATH}"
+        )
+
+    print(f"[Embeddings] Loading model from: {MODEL_PATH}")
 
     model = SentenceTransformer(
-        MODEL_PATH,
+        str(MODEL_PATH),
         trust_remote_code=True
     )
 
@@ -51,20 +55,24 @@ def generate_and_store_command_embeddings():
     try:
         cur = conn.cursor()
 
-        # Commands table is the source of truth
+        # Always work in deterministic order
         cur.execute(
             """
             SELECT command_id, description
             FROM commands
+            ORDER BY command_id ASC
             """
         )
         commands = cur.fetchall()
 
         if not commands:
-            print("No commands found in database. Nothing to embed.")
+            print("[Embeddings] No commands found. Nothing to embed.")
             return
 
-        print(f"Generating embeddings for {len(commands)} commands...")
+        print(f"[Embeddings] Generating embeddings for {len(commands)} commands...")
+
+        # Remove stale embeddings first
+        cur.execute("DELETE FROM command_embeddings")
 
         for command_id, description in commands:
             embedding = model.encode(
@@ -74,7 +82,7 @@ def generate_and_store_command_embeddings():
 
             cur.execute(
                 """
-                INSERT OR REPLACE INTO command_embeddings
+                INSERT INTO command_embeddings
                 (command_id, embedding_json)
                 VALUES (?, ?)
                 """,
@@ -82,7 +90,7 @@ def generate_and_store_command_embeddings():
             )
 
         conn.commit()
-        print("Command embeddings stored successfully.")
+        print("[Embeddings] Command embeddings regenerated successfully.")
 
     finally:
         conn.close()
@@ -90,5 +98,6 @@ def generate_and_store_command_embeddings():
 # ============================================================
 # SCRIPT ENTRY POINT
 # ============================================================
+
 if __name__ == "__main__":
     generate_and_store_command_embeddings()

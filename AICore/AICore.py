@@ -31,17 +31,48 @@ load_dotenv()
 # ============================================================
 # AI can ONLY execute commands defined here.
 COMMAND_REGISTRY = {
+    # --------------------------------------------------------
+    # REGISTRY
+    # --------------------------------------------------------
     "open": external_commands.shell_open,
     "register": external_commands.shell_register,
-    "clean": external_commands.shell_clean,
-    "make": external_commands.shell_make,
-    "read": external_commands.shell_read,
-    "search": external_commands.shell_search,
+
+    # --------------------------------------------------------
+    # SERVER
+    # --------------------------------------------------------
+    "server-last-boot": external_commands.shell_server_last_boot_time,
+    "server-state": external_commands.shell_server_state,
+    "server-ssh": external_commands.shell_server_ssh_helper,
+    "nextcloud-status": external_commands.shell_server_nextcloud_status,
+    "server-health": external_commands.shell_server_health,
+
+    # --------------------------------------------------------
+    # GITHUB
+    # --------------------------------------------------------
+    "github-repos": external_commands.shell_github_repos,
+    "github-repo-summary": external_commands.shell_github_repo_summary,
+    "github-recent-commits": external_commands.shell_github_recent_commits,
+    "github-repo-activity": external_commands.shell_github_repo_activity,
+    "github-languages": external_commands.shell_github_languages,
+
+    # --------------------------------------------------------
+    # INFORMATIVE
+    # --------------------------------------------------------
     "news": external_commands.shell_news,
     "weather": external_commands.shell_weather,
-    "stocks": external_commands.shell_stocks,
-    "download": external_commands.shell_download,
+
+    # --------------------------------------------------------
+    # LOCAL SYSTEM
+    # --------------------------------------------------------
+    "system-specs": external_commands.shell_system_specs,
+    "system-uptime": external_commands.shell_system_uptime,
+    "wifi-status": external_commands.shell_current_wifi,
+
+    # --------------------------------------------------------
+    # AI / ANALYTICS
+    # --------------------------------------------------------
     "summarize": external_commands.shell_summarize,
+    "analytics": external_commands.shell_analytics_overview,
 }
 
 # ============================================================
