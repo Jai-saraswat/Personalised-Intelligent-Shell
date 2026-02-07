@@ -1106,7 +1106,7 @@ JaiShell [CHAT] ▸
 
 ```
 JaiShell [CHAT] ▸ what commands can I use in this shell?
-JaiShell supports multiple command categories:
+The shell supports multiple command categories:
 
 1. System Commands: system-specs, system-uptime, wifi-status
 2. GitHub Commands: github-repos, github-repo-summary, github-recent-commits
@@ -1329,7 +1329,7 @@ python Core/db_vector_manager.py
 
 **Expected Output:**
 ```
-Initializing database at: ./jaishell.db
+Initializing database at: ./Shell_Warehouse.db
 Database schema ready.
 Seeded 20 commands successfully.
 Generating embeddings for 20 commands...
@@ -1518,10 +1518,10 @@ Special thanks to:
 If you use this project in academic work, please cite:
 
 ```bibtex
-@software{saraswat2025jaishell,
+@software{personalised_intelligent_shell_2026,
   author = {Saraswat, Jai},
   title = {Personalised Intelligent Shell: A Hybrid Command-Line Interface with AI-Powered Semantic Routing},
-  year = {2025},
+  year = {2026},
   version = {1.0},
   url = {https://github.com/Jai-saraswat/Personalised-Intelligent-Shell}
 }
