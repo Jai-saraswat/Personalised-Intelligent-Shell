@@ -1254,7 +1254,7 @@ All executions completed successfully.
 ### Step 1: Clone Repository
 
 ```bash
-git clone https://github.com/yourusername/Personalised-Intelligent-Shell.git
+git clone https://github.com/Jai-saraswat/Personalised-Intelligent-Shell.git
 cd Personalised-Intelligent-Shell
 ```
 
@@ -1283,8 +1283,9 @@ The system requires a fine-tuned sentence transformer model for semantic routing
 
 ```bash
 # Option 1: Download pre-trained model
-wget https://github.com/yourusername/Personalised-Intelligent-Shell/releases/download/v1.0/Finetuned-gte-large-en-v1.5.tar.gz
-tar -xzf Finetuned-gte-large-en-v1.5.tar.gz
+# Note: Model not yet released - coming soon in v1.0 release
+# wget https://github.com/Jai-saraswat/Personalised-Intelligent-Shell/releases/download/v1.0/Finetuned-gte-large-en-v1.5.tar.gz
+# tar -xzf Finetuned-gte-large-en-v1.5.tar.gz
 
 # Option 2: Train from scratch (requires training data)
 python AICore/train_embeddings.py
@@ -1493,9 +1494,7 @@ Full license text: [LICENSE](./LICENSE)
 
 Software Engineer specializing in AI systems, natural language processing, and human-computer interaction.
 
-- Email: jai.saraswat@example.com
-- GitHub: [@jaisaraswat](https://github.com/jaisaraswat)
-- LinkedIn: [Jai Saraswat](https://linkedin.com/in/jaisaraswat)
+- GitHub: [@Jai-saraswat](https://github.com/Jai-saraswat)
 
 ---
 
@@ -1524,7 +1523,7 @@ If you use this project in academic work, please cite:
   title = {Personalised Intelligent Shell: A Hybrid Command-Line Interface with AI-Powered Semantic Routing},
   year = {2025},
   version = {1.0},
-  url = {https://github.com/jaisaraswat/Personalised-Intelligent-Shell}
+  url = {https://github.com/Jai-saraswat/Personalised-Intelligent-Shell}
 }
 ```
 
@@ -1545,9 +1544,8 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
 ### Support
 
 For bugs, feature requests, or questions:
-- **Issues**: [GitHub Issues](https://github.com/jaisaraswat/Personalised-Intelligent-Shell/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/jaisaraswat/Personalised-Intelligent-Shell/discussions)
-- **Email**: jai.saraswat@example.com
+- **Issues**: [GitHub Issues](https://github.com/Jai-saraswat/Personalised-Intelligent-Shell/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/Jai-saraswat/Personalised-Intelligent-Shell/discussions)
 
 ---
 
