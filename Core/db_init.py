@@ -147,20 +147,34 @@ CREATE TABLE IF NOT EXISTS conversation_history (
 -- ============================================================
 -- INDEXES
 -- ============================================================
+
+-- Command executions
 CREATE INDEX IF NOT EXISTS idx_exec_session
     ON command_executions (session_id);
 
+-- Errors
 CREATE INDEX IF NOT EXISTS idx_error_session
     ON errors (session_id);
 
+-- AI decisions
 CREATE INDEX IF NOT EXISTS idx_ai_session
     ON ai_decisions (session_id);
 
+-- Conversation history lookups
 CREATE INDEX IF NOT EXISTS idx_conversation_session
     ON conversation_history (session_id);
 
 CREATE INDEX IF NOT EXISTS idx_conversation_turn
     ON conversation_history (session_id, turn_id);
+
+-- Enforce unique turn ordering per session
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_session_turn
+    ON conversation_history (session_id, turn_id);
+
+-- Optimize session resume / lookup
+CREATE INDEX IF NOT EXISTS idx_sessions_start_time
+    ON sessions (start_timestamp);
+
 """
 
 # ============================================================

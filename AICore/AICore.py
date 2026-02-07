@@ -7,29 +7,34 @@
 # - Route user intent via semantic router
 # - Extract arguments via LLM (Groq)
 # - Execute ONLY registered commands
-# - Format final response
+# - Enforce safety + confirmation boundaries
+# - Return standardized responses
 #
 # This file does NOT:
 # - Define commands
 # - Define embeddings
-# - Access DB directly (except via readers)
 # - Perform UI logic
 #
 # ============================================================
 
-from typing import List
+from typing import List, Dict, Any
+
+from dotenv import load_dotenv
+load_dotenv()
 
 from Core.command_contract import command_result
 from Core.Function_Router import route_command
 from Core.server_api import extract_arguments
 from Core.db_reader import get_function_schema
+from Core.db_writer import log_ai_decision
+
 from External_Commands import commands as external_commands
-from dotenv import load_dotenv
-load_dotenv()
+
+
 # ============================================================
-# COMMAND REGISTRY (STRICT)
+# COMMAND REGISTRY (STRICT, EXPLICIT)
 # ============================================================
-# AI can ONLY execute commands defined here.
+
 COMMAND_REGISTRY = {
     # --------------------------------------------------------
     # REGISTRY
@@ -75,27 +80,30 @@ COMMAND_REGISTRY = {
     "analytics": external_commands.shell_analytics_overview,
 }
 
+
 # ============================================================
-# TOKENIZATION (LIGHTWEIGHT, EXPLAINABLE)
+# TOKENIZATION (AUXILIARY, EXPLAINABLE)
 # ============================================================
+
 def ai_core_tokenize(prompt: str) -> List[str]:
     """
-    Simple semantic tokenization.
-    Used only as auxiliary signal for argument extraction.
+    Lightweight tokenization used only as a weak signal
+    for argument extraction.
     """
     if not prompt:
         return []
-
     return prompt.lower().split()
 
+
 # ============================================================
-# COMMAND EXECUTION
+# SAFE COMMAND EXECUTION
 # ============================================================
+
 def execute_command(
     command_name: str,
     args: List[str],
-    context: dict
-):
+    context: Dict[str, Any]
+) -> Dict:
     """
     Execute a registered command safely.
     """
@@ -114,30 +122,49 @@ def execute_command(
             message=f"Execution failed: {e}"
         )
 
+
 # ============================================================
-# AI ENGINE (MAIN ENTRY)
+# AI ENGINE (MAIN ENTRY POINT)
 # ============================================================
-def ai_engine(prompt: str, context: dict):
+
+def ai_engine(prompt: str, context: Dict[str, Any]) -> Dict:
     """
     Main AI orchestration entry point.
     """
+
+    session_id = context.get("session_id")
+
     # --------------------------------------------------------
-    # 1. Route intent
+    # 1. Route intent (semantic)
     # --------------------------------------------------------
     command_id, decision, confidence = route_command(prompt)
+
+    # Log AI decision (even if rejected)
+    try:
+        log_ai_decision(
+            session_id=session_id,
+            raw_input=prompt,
+            chosen_command_id=command_id,
+            confidence=confidence,
+            decision_type=decision,
+            reason=None
+        )
+    except Exception:
+        # Logging failure must NEVER break execution
+        pass
 
     if decision == "REJECT" or command_id is None:
         return command_result(
             status="success",
             message=(
                 "I couldn’t confidently map that to a shell command.\n"
-                "Try commands like: open, clean, read, summarize, weather."
+                "Try commands like: open, register, summarize, weather, analytics."
             ),
             confidence=confidence
         )
 
     # --------------------------------------------------------
-    # 2. Resolve command name & schema
+    # 2. Resolve command schema
     # --------------------------------------------------------
     schema = get_function_schema(command_id)
     if not schema:
@@ -147,7 +174,8 @@ def ai_engine(prompt: str, context: dict):
             confidence=confidence
         )
 
-    command_name = schema.get("command_name")
+    command_name = schema["command_name"]
+
     if command_name not in COMMAND_REGISTRY:
         return command_result(
             status="error",
@@ -156,14 +184,14 @@ def ai_engine(prompt: str, context: dict):
         )
 
     # --------------------------------------------------------
-    # 3. Confirmation gate (destructive commands)
+    # 3. Confirmation gate
     # --------------------------------------------------------
     if schema.get("requires_confirmation") and decision == "CONFIRM":
         return command_result(
             status="success",
             message=(
                 f"The command `{command_name}` requires confirmation.\n"
-                f"Please confirm before proceeding."
+                "Please confirm before proceeding."
             ),
             confidence=confidence
         )
@@ -185,8 +213,10 @@ def ai_engine(prompt: str, context: dict):
             confidence=confidence
         )
 
-    # Convert extracted args → CLI-style args
-    args = []
+    # --------------------------------------------------------
+    # 5. Normalize args → CLI-style list
+    # --------------------------------------------------------
+    args: List[str] = []
     for key, value in args_dict.items():
         if isinstance(value, bool):
             if value:
@@ -195,7 +225,7 @@ def ai_engine(prompt: str, context: dict):
             args.append(str(value))
 
     # --------------------------------------------------------
-    # 5. Execute command
+    # 6. Execute command
     # --------------------------------------------------------
     result = execute_command(
         command_name=command_name,
@@ -204,7 +234,7 @@ def ai_engine(prompt: str, context: dict):
     )
 
     # --------------------------------------------------------
-    # 6. Attach confidence & return
+    # 7. Attach AI confidence
     # --------------------------------------------------------
     result["confidence"] = confidence
     return result

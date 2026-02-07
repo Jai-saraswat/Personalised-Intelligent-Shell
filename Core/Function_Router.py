@@ -13,7 +13,6 @@
 #   - Ask for confirmation
 #   - Log decisions
 #   - Know anything about UX
-#
 # ============================================================
 
 import json
@@ -30,14 +29,11 @@ from Core.db_connection import get_connection
 # ============================================================
 # MODEL CONFIGURATION (SINGLE SOURCE OF TRUTH)
 # ============================================================
-# Resolution order:
-# 1. ENV variable (preferred)
-# 2. Project-relative fallback
 
 DEFAULT_MODEL_DIR = Path(__file__).resolve().parents[1] / "Finetuned-gte-large-en-v1.5"
 MODEL_PATH = os.getenv("EMBEDDING_MODEL_PATH", str(DEFAULT_MODEL_DIR))
 
-# Thresholds (tuned later, kept explicit)
+# Thresholds (explicit + explainable)
 AUTO_EXECUTE_THRESHOLD = 0.75
 CONFIRM_THRESHOLD = 0.60
 MIN_MARGIN = 0.08
@@ -45,7 +41,8 @@ MIN_MARGIN = 0.08
 # ============================================================
 # MODEL LOADING
 # ============================================================
-_model = None
+
+_model: SentenceTransformer | None = None
 
 def get_model() -> SentenceTransformer:
     """
@@ -60,12 +57,20 @@ def get_model() -> SentenceTransformer:
     return _model
 
 # ============================================================
-# EMBEDDING FETCH
+# EMBEDDING CACHE
 # ============================================================
+
+_cached_embeddings = None
+
 def _load_command_embeddings():
     """
-    Fetch command embeddings from the database.
+    Fetch and cache command embeddings from the database.
     """
+    global _cached_embeddings
+
+    if _cached_embeddings is not None:
+        return _cached_embeddings
+
     conn = get_connection()
     try:
         cur = conn.cursor()
@@ -78,10 +83,15 @@ def _load_command_embeddings():
             FROM commands c
             JOIN command_embeddings ce
                 ON c.command_id = ce.command_id
+            ORDER BY c.command_id ASC
             """
         )
 
         rows = cur.fetchall()
+
+        if not rows:
+            _cached_embeddings = ([], [], np.array([], dtype="float32"))
+            return _cached_embeddings
 
         command_ids = []
         command_names = []
@@ -92,11 +102,13 @@ def _load_command_embeddings():
             command_names.append(command_name)
             embeddings.append(json.loads(embedding_json))
 
-        return (
+        _cached_embeddings = (
             command_ids,
             command_names,
             np.array(embeddings, dtype="float32")
         )
+
+        return _cached_embeddings
 
     finally:
         conn.close()
@@ -104,6 +116,7 @@ def _load_command_embeddings():
 # ============================================================
 # ROUTING CORE
 # ============================================================
+
 def predict_intent(query: str, top_k: int = 3) -> List[Tuple[int, str, float]]:
     """
     Rank commands by semantic similarity.
@@ -116,7 +129,7 @@ def predict_intent(query: str, top_k: int = 3) -> List[Tuple[int, str, float]]:
 
     command_ids, command_names, command_embeddings = _load_command_embeddings()
 
-    if len(command_embeddings) == 0:
+    if command_embeddings.size == 0:
         return []
 
     scores = cosine_similarity(
@@ -135,17 +148,18 @@ def predict_intent(query: str, top_k: int = 3) -> List[Tuple[int, str, float]]:
 # ============================================================
 # DECISION LOGIC
 # ============================================================
+
 def route_command(query: str):
     """
     Determine routing action based on similarity confidence.
     """
     ranked = predict_intent(query, top_k=2)
 
-    if len(ranked) == 0:
+    if not ranked:
         return None, "REJECT", 0.0
 
-    (cmd_id_1, cmd_name_1, score_1) = ranked[0]
-    (_, _, score_2) = ranked[1] if len(ranked) > 1 else (None, None, 0.0)
+    (cmd_id_1, _, score_1) = ranked[0]
+    score_2 = ranked[1][2] if len(ranked) > 1 else 0.0
 
     # High confidence + clear margin
     if score_1 >= AUTO_EXECUTE_THRESHOLD and (score_1 - score_2) >= MIN_MARGIN:

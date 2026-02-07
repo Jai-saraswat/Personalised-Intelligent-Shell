@@ -36,10 +36,14 @@ def get_connection():
     Configuration applied:
     - Foreign key enforcement
     - WAL journal mode (handled in db_init)
+    - Explicit timeout to avoid lock contention
     - Row factory disabled (explicit tuples for clarity)
     """
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(
+            DB_PATH,
+            timeout=30  # prevents 'database is locked' issues
+        )
 
         # Enforce relational integrity
         conn.execute("PRAGMA foreign_keys = ON;")

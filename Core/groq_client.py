@@ -1,46 +1,90 @@
 # ============================================================
 # groq_client.py
 # ============================================================
-# Centralized Groq client factory for JaiShell.
+# Centralized Groq REST client for JaiShell.
 #
 # Responsibilities:
 # - Load environment configuration
-# - Create and expose a single Groq client instance
+# - Send RAW HTTP requests to Groq
+# - Expose minimal, safe chat completion API
 #
 # RULES:
-# - This is the ONLY place Groq may be instantiated
-# - No prompt logic
-# - No retries or business logic
+# - NO Groq Python SDK
+# - NO retries
+# - NO orchestration logic
 # ============================================================
 
 import os
-from groq import Groq
+import requests
 from dotenv import load_dotenv
 
-# ============================================================
-# ENVIRONMENT LOADING
-# ============================================================
 load_dotenv()
 
 # ============================================================
-# LAZY SINGLETON CLIENT
+# CONFIGURATION
 # ============================================================
-_client = None
 
-def get_groq_client():
+GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
+DEFAULT_MODEL = os.getenv("GROQ_CHAT_MODEL", "openai/gpt-oss-120b")
+TIMEOUT = 30
+
+
+# ============================================================
+# CHAT COMPLETION
+# ============================================================
+
+def chat_complete(
+    *,
+    messages: list,
+    temperature: float = 0.2,
+    top_p: float = 0.9,
+    max_tokens: int = 800
+) -> str:
     """
-    Return a singleton Groq client instance.
+    Perform a chat completion via Groq (RAW REST).
 
-    This function MUST be the only place Groq is instantiated.
+    Args:
+        messages (list): OpenAI-style message list
+        temperature (float)
+        top_p (float)
+        max_tokens (int)
+
+    Returns:
+        str: Assistant response text
     """
-    global _client
-
-    if _client is not None:
-        return _client
 
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
         raise RuntimeError("GROQ_API_KEY not set")
 
-    _client = Groq(api_key=api_key)
-    return _client
+    payload = {
+        "model": DEFAULT_MODEL,
+        "messages": messages,
+        "temperature": temperature,
+        "top_p": top_p,
+        "max_tokens": max_tokens,
+    }
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+
+    response = requests.post(
+        GROQ_ENDPOINT,
+        json=payload,
+        headers=headers,
+        timeout=TIMEOUT
+    )
+
+    if response.status_code != 200:
+        raise RuntimeError(
+            f"Groq API error {response.status_code}: {response.text}"
+        )
+
+    data = response.json()
+
+    try:
+        return data["choices"][0]["message"]["content"].strip()
+    except Exception:
+        raise RuntimeError(f"Invalid Groq response format: {data}")

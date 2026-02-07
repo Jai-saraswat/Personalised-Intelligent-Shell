@@ -46,7 +46,7 @@ from Core.ContextManager import (
 )
 
 # ------------------------------------------------------------
-# COMMANDS
+# GENERAL COMMANDS
 # ------------------------------------------------------------
 from General_Commands.commands import (
     shell_exit,
@@ -57,22 +57,23 @@ from General_Commands.commands import (
     shell_logs,
 )
 
+# ------------------------------------------------------------
+# EXTERNAL COMMANDS
+# ------------------------------------------------------------
 from External_Commands.commands import *
 
 # ------------------------------------------------------------
-# CONFIG
+# CONFIGURATION
 # ------------------------------------------------------------
 USER_NAME = os.getenv("USER_NAME", "user")
 DEFAULT_MODE = "rule"
 TYPING_SPEED = 0.003
 
 # ------------------------------------------------------------
-# RULE ENGINE MAP
+# RULE MODE COMMAND MAP
 # ------------------------------------------------------------
 FUNCTION_MAP = {
-    # --------------------------------------------------------
-    # CORE / GENERAL
-    # --------------------------------------------------------
+    # CORE
     "exit": shell_exit,
     "quit": shell_exit,
     "help": shell_help,
@@ -81,46 +82,34 @@ FUNCTION_MAP = {
     "history": shell_history,
     "logs": shell_logs,
 
-    # --------------------------------------------------------
     # REGISTRY
-    # --------------------------------------------------------
     "open": shell_open,
     "register": shell_register,
 
-    # --------------------------------------------------------
     # SERVER
-    # --------------------------------------------------------
     "server-last-boot": shell_server_last_boot_time,
     "server-state": shell_server_state,
     "server-ssh": shell_server_ssh_helper,
     "nextcloud-status": shell_server_nextcloud_status,
     "server-health": shell_server_health,
 
-    # --------------------------------------------------------
     # GITHUB
-    # --------------------------------------------------------
     "github-repos": shell_github_repos,
     "github-repo-summary": shell_github_repo_summary,
     "github-recent-commits": shell_github_recent_commits,
     "github-repo-activity": shell_github_repo_activity,
     "github-languages": shell_github_languages,
 
-    # --------------------------------------------------------
-    # INFORMATIVE
-    # --------------------------------------------------------
+    # INFO
     "news": shell_news,
     "weather": shell_weather,
 
-    # --------------------------------------------------------
     # LOCAL SYSTEM
-    # --------------------------------------------------------
     "system-specs": shell_system_specs,
     "system-uptime": shell_system_uptime,
     "wifi-status": shell_current_wifi,
 
-    # --------------------------------------------------------
     # AI / ANALYTICS
-    # --------------------------------------------------------
     "summarize": shell_summarize,
     "analytics": shell_analytics_overview,
 }
@@ -128,7 +117,8 @@ FUNCTION_MAP = {
 # ============================================================
 # OUTPUT UTILITIES
 # ============================================================
-def type_print(text, delay=TYPING_SPEED):
+
+def type_print(text: str, delay: float = TYPING_SPEED):
     if not text:
         return
     for char in str(text):
@@ -138,7 +128,7 @@ def type_print(text, delay=TYPING_SPEED):
     print()
 
 
-def print_response(result):
+def print_response(result: dict):
     if not result:
         return
 
@@ -149,10 +139,29 @@ def print_response(result):
     if isinstance(content, list):
         for line in content:
             type_print(line, delay=0.001)
+            
+def _flatten_output(result: dict) -> str:
+    """
+    Convert command_result into a single replayable text output.
+    """
+    lines = []
+
+    if result.get("message"):
+        lines.append(result["message"])
+
+    content = result.get("data", {}).get("content")
+    if isinstance(content, list):
+        lines.extend(content)
+    elif isinstance(content, str):
+        lines.append(content)
+
+    return "\n".join(lines).strip()
+
 
 # ============================================================
 # MAIN LOOP
 # ============================================================
+
 def main():
     # ---------------------------
     # BOOT
@@ -189,17 +198,18 @@ def main():
             # -----------------------
             # MODE SWITCHING
             # -----------------------
-            if raw_input.lower() == "mode ai":
+            lowered = raw_input.lower()
+            if lowered == "mode ai":
                 set_mode(context, "ai")
                 type_print("Switched to AI mode.")
                 continue
 
-            if raw_input.lower() == "mode rule":
+            if lowered == "mode rule":
                 set_mode(context, "rule")
                 type_print("Switched to Rule mode.")
                 continue
 
-            if raw_input.lower() == "mode chat":
+            if lowered == "mode chat":
                 set_mode(context, "chat")
                 type_print("Switched to Chat mode.")
                 continue
@@ -220,7 +230,10 @@ def main():
                     cmd = tokens[0].lower()
                     args = tokens[1:]
                 except ValueError:
-                    result = command_result("error", "Invalid command format.")
+                    result = command_result(
+                        status="error",
+                        message="Invalid command format."
+                    )
                     print_response(result)
                     continue
 
@@ -229,7 +242,10 @@ def main():
                     function_name = func.__name__
                     result = func(args, context)
                 else:
-                    result = command_result("error", f"Unknown command: {cmd}")
+                    result = command_result(
+                        status="error",
+                        message=f"Unknown command: {cmd}"
+                    )
 
             # -----------------------
             # AI MODE
@@ -269,7 +285,7 @@ def main():
                     turn_id=turn_id,
                     mode=context["mode"],
                     user_input=raw_input,
-                    assistant_output=result.get("message"),
+                    assistant_output=_flatten_output(result),
                     command_called=function_name,
                     status=result.get("status"),
                     confidence=result.get("confidence"),
@@ -290,7 +306,7 @@ def main():
             set_last_command(context, function_name)
 
             # -----------------------
-            # EFFECTS
+            # EFFECT HANDLING
             # -----------------------
             for effect in result.get("effects", []):
                 if effect == "exit":
@@ -324,5 +340,6 @@ def main():
 # ============================================================
 # ENTRY POINT
 # ============================================================
+
 if __name__ == "__main__":
     main()

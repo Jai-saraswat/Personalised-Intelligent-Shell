@@ -7,6 +7,7 @@
 #   - CoreShell
 #   - General commands
 #   - AI orchestration
+#   - ChatCore
 #
 # RULES:
 # - No writes
@@ -58,13 +59,12 @@ def get_session_stats(session_id: int):
         conn.close()
 
 # ============================================================
-# COMMAND HISTORY
+# COMMAND HISTORY (GLOBAL)
 # ============================================================
 
 def get_recent_commands(limit: int = 10):
     """
     Fetch recent command executions across all sessions.
-    Used by the 'history' command.
     """
     conn = get_connection()
     try:
@@ -86,6 +86,32 @@ def get_recent_commands(limit: int = 10):
     finally:
         conn.close()
 
+
+def get_session_commands(session_id: int, limit: int = 20):
+    """
+    Fetch command executions for a specific session.
+    """
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT
+                raw_input,
+                status,
+                mode,
+                timestamp
+            FROM command_executions
+            WHERE session_id = ?
+            ORDER BY execution_id DESC
+            LIMIT ?
+            """,
+            (session_id, limit),
+        )
+        return cur.fetchall()
+    finally:
+        conn.close()
+
 # ============================================================
 # ERROR LOGS
 # ============================================================
@@ -93,7 +119,6 @@ def get_recent_commands(limit: int = 10):
 def get_recent_errors(limit: int = 5):
     """
     Fetch recent system or command errors.
-    Used by the 'logs' command.
     """
     conn = get_connection()
     try:
@@ -276,13 +301,13 @@ def get_function_schema(command_id: int):
         conn.close()
 
 # ============================================================
-# CONVERSATION HISTORY (MULTI-MODE MEMORY)
+# CONVERSATION HISTORY (SESSION-AWARE MEMORY)
 # ============================================================
 
 def get_conversation_history(session_id: int, limit: int = 20):
     """
     Fetch recent conversation turns for a session.
-    Used by chat mode and session resume.
+    Returns list[dict] in DESC order.
     """
     conn = get_connection()
     try:
@@ -306,7 +331,55 @@ def get_conversation_history(session_id: int, limit: int = 20):
             """,
             (session_id, limit)
         )
-        return cur.fetchall()
+
+        rows = cur.fetchall()
+
+        return [
+            {
+                "turn_id": r[0],
+                "mode": r[1],
+                "user_input": r[2],
+                "assistant_output": r[3],
+                "command_called": r[4],
+                "status": r[5],
+                "confidence": r[6],
+                "context_snapshot": r[7],
+                "timestamp": r[8],
+            }
+            for r in rows
+        ]
+
+    finally:
+        conn.close()
+
+
+def get_last_conversation_turn(session_id: int):
+    """
+    Fetch the most recent conversation turn for a session.
+    """
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT
+                turn_id,
+                mode,
+                user_input,
+                assistant_output,
+                command_called,
+                status,
+                confidence,
+                context_snapshot,
+                timestamp
+            FROM conversation_history
+            WHERE session_id = ?
+            ORDER BY turn_id DESC
+            LIMIT 1
+            """,
+            (session_id,)
+        )
+        return cur.fetchone()
     finally:
         conn.close()
 
@@ -314,7 +387,6 @@ def get_conversation_history(session_id: int, limit: int = 20):
 def get_conversation_turns_after(session_id: int, turn_id: int):
     """
     Fetch conversation turns after a given turn_id.
-    Useful for incremental context building.
     """
     conn = get_connection()
     try:
@@ -341,11 +413,13 @@ def get_conversation_turns_after(session_id: int, turn_id: int):
     finally:
         conn.close()
 
+# ============================================================
+# SESSION RESUME HELPERS
+# ============================================================
 
 def get_last_session_id():
     """
     Fetch the most recent session_id.
-    Used for session resume.
     """
     conn = get_connection()
     try:

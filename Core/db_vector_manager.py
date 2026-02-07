@@ -37,6 +37,11 @@ def generate_and_store_command_embeddings():
     """
     Generate embeddings for all commands defined in the database
     and store them in the command_embeddings table.
+
+    This operation is:
+    - Deterministic
+    - Atomic
+    - Safe to re-run
     """
 
     if not MODEL_PATH.exists():
@@ -55,6 +60,9 @@ def generate_and_store_command_embeddings():
     try:
         cur = conn.cursor()
 
+        # Explicit safety (even though enforced globally)
+        cur.execute("PRAGMA foreign_keys = ON;")
+
         # Always work in deterministic order
         cur.execute(
             """
@@ -71,7 +79,10 @@ def generate_and_store_command_embeddings():
 
         print(f"[Embeddings] Generating embeddings for {len(commands)} commands...")
 
-        # Remove stale embeddings first
+        # Begin atomic transaction
+        conn.execute("BEGIN")
+
+        # Remove stale embeddings
         cur.execute("DELETE FROM command_embeddings")
 
         for command_id, description in commands:
@@ -91,6 +102,10 @@ def generate_and_store_command_embeddings():
 
         conn.commit()
         print("[Embeddings] Command embeddings regenerated successfully.")
+
+    except Exception:
+        conn.rollback()
+        raise
 
     finally:
         conn.close()

@@ -7,7 +7,7 @@
 # - Create and maintain session context
 # - Track turn progression
 # - Hold lightweight cross-mode memory
-# - Serialize context snapshots for persistence
+# - Provide safe serialization for persistence
 #
 # This module does NOT:
 # - Read or write the database
@@ -16,12 +16,14 @@
 # ============================================================
 
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Optional
+import json
 
 
 # ============================================================
 # CONTEXT CREATION
 # ============================================================
+
 def create_context(
     session_id: int,
     user_name: str,
@@ -29,14 +31,6 @@ def create_context(
 ) -> Dict[str, Any]:
     """
     Create a fresh session context.
-
-    Args:
-        session_id (int): Unique session identifier
-        user_name (str): Display name of the user
-        initial_mode (str): Starting mode ('rule' | 'ai' | 'chat')
-
-    Returns:
-        dict: Initialized context object
     """
     return {
         "session_id": session_id,
@@ -55,12 +49,10 @@ def create_context(
 # ============================================================
 # TURN MANAGEMENT
 # ============================================================
+
 def next_turn(context: Dict[str, Any]) -> int:
     """
     Advance the turn counter.
-
-    Returns:
-        int: New turn_id
     """
     context["turn_id"] += 1
     return context["turn_id"]
@@ -69,7 +61,8 @@ def next_turn(context: Dict[str, Any]) -> int:
 # ============================================================
 # MODE MANAGEMENT
 # ============================================================
-def set_mode(context: Dict[str, Any], mode: str):
+
+def set_mode(context: Dict[str, Any], mode: str) -> None:
     """
     Update the active shell mode.
     """
@@ -79,11 +72,12 @@ def set_mode(context: Dict[str, Any], mode: str):
 # ============================================================
 # MEMORY MANAGEMENT
 # ============================================================
+
 def remember(
     context: Dict[str, Any],
     item: Any,
     limit: int = 10
-):
+) -> None:
     """
     Store a short-term memory item.
 
@@ -96,35 +90,50 @@ def remember(
         memory.pop(0)
 
 
-def set_last_command(context: Dict[str, Any], command_name: str | None):
+def set_last_command(
+    context: Dict[str, Any],
+    command_name: Optional[str]
+) -> None:
     """
     Track the last executed command.
     """
     context["memory"]["last_command"] = command_name
 
 
-def set_flag(context: Dict[str, Any], key: str, value: Any):
+def set_flag(
+    context: Dict[str, Any],
+    key: str,
+    value: Any
+) -> None:
     """
     Set a contextual flag.
     """
     context["memory"]["flags"][key] = value
 
 
-def get_flag(context: Dict[str, Any], key: str, default=None):
+def get_flag(
+    context: Dict[str, Any],
+    key: str,
+    default: Any = None
+) -> Any:
     """
-    Get a contextual flag.
+    Retrieve a contextual flag.
     """
     return context["memory"]["flags"].get(key, default)
 
 
 # ============================================================
-# SERIALIZATION
+# SERIALIZATION (STABLE & SAFE)
 # ============================================================
+
 def serialize_context(context: Dict[str, Any]) -> str:
     """
     Serialize a minimal, stable snapshot of the context.
 
-    Used for conversation history persistence.
+    This snapshot is:
+    - Deterministic
+    - JSON-safe
+    - Suitable for DB persistence
     """
     snapshot = {
         "session_id": context["session_id"],
@@ -133,16 +142,17 @@ def serialize_context(context: Dict[str, Any]) -> str:
         "last_command": context["memory"]["last_command"],
         "flags": context["memory"]["flags"]
     }
-    return str(snapshot)
+
+    return json.dumps(snapshot, separators=(",", ":"))
 
 
 def hydrate_context(
     context: Dict[str, Any],
     *,
-    turn_id: int | None = None,
-    last_command: str | None = None,
-    flags: dict | None = None
-):
+    turn_id: Optional[int] = None,
+    last_command: Optional[str] = None,
+    flags: Optional[dict] = None
+) -> None:
     """
     Hydrate an existing context with restored state.
     Used during session resume.
@@ -153,5 +163,5 @@ def hydrate_context(
     if last_command is not None:
         context["memory"]["last_command"] = last_command
 
-    if flags is not None:
+    if flags:
         context["memory"]["flags"].update(flags)

@@ -46,7 +46,7 @@ COMMANDS = [
     },
 
     # ========================================================
-    # SERVER (NO USER ARGS)
+    # SERVER
     # ========================================================
     {
         "command_name": "server-last-boot",
@@ -226,12 +226,19 @@ def seed_commands():
     conn = get_connection()
     try:
         cur = conn.cursor()
+
         for cmd in COMMANDS:
             cur.execute(
                 """
-                INSERT OR IGNORE INTO commands
+                INSERT INTO commands
                 (command_name, category, description, schema_json, is_destructive, requires_confirmation)
                 VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(command_name) DO UPDATE SET
+                    category = excluded.category,
+                    description = excluded.description,
+                    schema_json = excluded.schema_json,
+                    is_destructive = excluded.is_destructive,
+                    requires_confirmation = excluded.requires_confirmation
                 """,
                 (
                     cmd["command_name"],
@@ -242,8 +249,10 @@ def seed_commands():
                     cmd["requires_confirmation"],
                 )
             )
+
         conn.commit()
-        print(f"Seeded {len(COMMANDS)} commands into database.")
+        print(f"Seeded / updated {len(COMMANDS)} commands.")
+
     finally:
         conn.close()
 
