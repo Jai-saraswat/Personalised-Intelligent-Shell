@@ -1279,19 +1279,19 @@ pip install -r Requirements.txt
 
 ### Step 3: Download Fine-Tuned Embedding Model
 
-The system requires a fine-tuned sentence transformer model for semantic routing. Download from the releases page or train your own:
+The system requires a fine-tuned sentence transformer model for semantic routing. For v1.0, you need to train the model locally:
 
 ```bash
-# Option 1: Download pre-trained model
-# Note: Model not yet released - coming soon in v1.0 release
-# wget https://github.com/Jai-saraswat/Personalised-Intelligent-Shell/releases/download/v1.0/Finetuned-gte-large-en-v1.5.tar.gz
-# tar -xzf Finetuned-gte-large-en-v1.5.tar.gz
-
-# Option 2: Train from scratch (requires training data)
+# Train embedding model (requires training data in AICore/training_data/)
 python AICore/train_embeddings.py
+
+# Alternative: Use base model (lower accuracy but functional)
+# The system will fall back to Alibaba-NLP/gte-large-en-v1.5 if fine-tuned model is unavailable
 ```
 
 Ensure model directory is at: `./Finetuned-gte-large-en-v1.5/`
+
+**Note**: Pre-trained models will be available in future releases.
 
 ---
 
